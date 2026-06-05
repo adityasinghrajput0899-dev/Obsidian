@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Obsidian AI Chat Agent</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/dist/highlight.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/atom-one-dark.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 250px 1fr 280px;
+            height: 100vh;
+            gap: 0;
+        }
+
+        /* LEFT PANEL: VAULT */
+        .left-panel {
+            background: #161b22;
+            border-right: 1px solid #30363d;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .vault-header {
+            padding: 15px;
+            background: #0d1117;
+            border-bottom: 1px solid #30363d;
+            font-weight: bold;
+            font-size: 0.95em;
+            color: #58a6ff;
+        }
+
+        .vault-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .vault-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.85em;
+            word-break: break-word;
+        }
+
+        .vault-item:hover {
+            background: #1c2128;
+            border-color: #58a6ff;
+        }
+
+        .vault-item.active {
+            background: #238636;
+            border-color: #3fb950;
+            color: #ffffff;
+        }
+
+        .loading {
+            padding: 20px;
+            text-align: center;
+            color: #8b949e;
+            font-size: 0.85em;
+        }
+
+        /* MIDDLE PANEL: CHAT */
+        .middle-panel {
+            display: flex;
+            flex-direction: column;
+            background: #0d1117;
+        }
+
+        .chat-header {
+            padding: 15px;
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            font-weight: bold;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            display: flex;
+            animation: slideIn 0.3s ease;
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message.assistant {
+            justify-content: flex-start;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 15px;
+            border-radius: 8px;
+            word-wrap: break-word;
+            overflow-x: auto;
+        }
+
+        .message.user .message-content {
+            background: #238636;
+            color: #ffffff;
+        }
+
+        .message.assistant .message-content {
+            background: #161b22;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .chat-input-area {
+            padding: 15px;
+            background: #161b22;
+            border-top: 1px solid #30363d;
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 10px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            color: #c9d1d9;
+            resize: none;
+            max-height: 100px;
+            font-family: inherit;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: #58a6ff;
+        }
+
+        .chat-button {
+            padding: 10px 20px;
+            background: #238636;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .chat-button:hover {
+            background: #2ea043;
+        }
+
+        .chat-button:disabled {
+            background: #30363d;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        /* RIGHT PANEL: HISTORY */
+        .right-panel {
+            background: #161b22;
+            border-left: 1px solid #30363d;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .history-header {
+            padding: 15px;
+            background: #0d1117;
+            border-bottom: 1px solid #30363d;
+            font-weight: bold;
+            font-size: 0.95em;
+            color: #58a6ff;
+        }
+
+        .history-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .history-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.8em;
+            word-break: break-word;
+        }
+
+        .history-item:hover {
+            background: #1c2128;
+            border-color: #58a6ff;
+        }
+
+        .history-item.active {
+            background: #1f6feb;
+            border-color: #58a6ff;
+            color: #ffffff;
+        }
+
+        .history-item-sop {
+            display: inline-block;
+            background: #238636;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.7em;
+            margin-top: 5px;
+        }
+
+        .history-item-date {
+            font-size: 0.7em;
+            color: #8b949e;
+        }
+
+        /* SCROLLBAR */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0d1117;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #30363d;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #484f58;
+        }
+
+        .error-message {
+            padding: 12px;
+            background: #da3633;
+            color: #ffffff;
+            border-radius: 4px;
+            margin: 10px;
+            font-size: 0.9em;
+        }
+
+        /* MARKDOWN STYLING */
+        .message-content pre {
+            background: #0d1117;
+            padding: 12px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 8px 0;
+            font-size: 12px;
+        }
+
+        .message-content code {
+            background: #21262d;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .message-content pre code {
+            background: none;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- LEFT: VAULT -->
+        <div class="left-panel">
+            <div class="vault-header">📁 Vault Files</div>
+            <div class="vault-list" id="vaultList">
+                <div class="loading">Loading files...</div>
+            </div>
+        </div>
+
+        <!-- MIDDLE: CHAT -->
+        <div class="middle-panel">
+            <div class="chat-header">💬 Obsidian AI Agent</div>
+            <div class="chat-messages" id="chatMessages"></div>
+            <div class="chat-input-area">
+                <textarea 
+                    class="chat-input" 
+                    id="chatInput" 
+                    placeholder="Type your message..."
+                    rows="3"
+                ></textarea>
+                <button class="chat-button" id="sendButton">Send</button>
+            </div>
+        </div>
+
+        <!-- RIGHT: HISTORY -->
+        <div class="right-panel">
+            <div class="history-header">📜 Chat History</div>
+            <div class="history-list" id="historyList">
+                <div class="loading">No chats yet</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            selectedFile: null,
+            selectedFileContent: null,
+            chatHistory: [],
+            isLoading: false
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadVault();
+            loadChatHistory();
+            checkOllamaStatus();
+            document.getElementById('sendButton').addEventListener('click', sendMessage);
+            document.getElementById('chatInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+        });
+
+        async function loadVault() {
+            try {
+                const response = await fetch('http://127.0.0.1:3001/api/vault');
+                const data = await response.json();
+                const vaultList = document.getElementById('vaultList');
+                vaultList.innerHTML = '';
+                
+                if (data.files.length === 0) {
+                    vaultList.innerHTML = '<div class="loading">No files found</div>';
+                    return;
+                }
+
+                data.files.forEach(file => {
+                    const item = document.createElement('div');
+                    item.className = 'vault-item';
+                    item.innerHTML = `📄 ${file.name}`;
+                    item.addEventListener('click', () => selectFile(file, item));
+                    vaultList.appendChild(item);
+                });
+            } catch (error) {
+                console.error('Error loading vault:', error);
+                document.getElementById('vaultList').innerHTML = '<div class="error-message">Failed to load</div>';
+            }
+        }
+
+        async function selectFile(file, element) {
+            try {
+                const response = await fetch(`http://127.0.0.1:3001/api/file?path=${encodeURIComponent(file.path)}`);
+                const data = await response.json();
+                state.selectedFile = file;
+                state.selectedFileContent = data.content;
+
+                document.querySelectorAll('.vault-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                element.classList.add('active');
+                
+                console.log('✅ File selected:', file.name);
+            } catch (error) {
+                console.error('Error loading file:', error);
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+
+            if (!message || state.isLoading) return;
+
+            addMessageToChat('user', message);
+            input.value = '';
+            state.isLoading = true;
+            document.getElementById('sendButton').disabled = true;
+
+            try {
+                const response = await fetch('http://127.0.0.1:3001/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: message,
+                        context: state.selectedFileContent,
+                        selectedFile: state.selectedFile?.name,
+                        history: state.chatHistory
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    const errorMsg = data.details || data.error || `Server error: ${response.status}`;
+                    throw new Error(errorMsg);
+                }
+                
+                if (!data.response) {
+                    throw new Error('Invalid response from server: missing response field');
+                }
+
+                addMessageToChat('assistant', data.response);
+                state.chatHistory = data.history || [];
+                
+                if (data.sopDetected) {
+                    console.log(`✅ SOP Detected: ${data.sopDetected}`);
+                    console.log(`💾 Chat saved as: ${data.chatFile}`);
+                }
+                
+                loadChatHistory();
+            } catch (error) {
+                console.error('Error:', error);
+                addMessageToChat('error', '❌ ' + error.message);
+            } finally {
+                state.isLoading = false;
+                document.getElementById('sendButton').disabled = false;
+            }
+        }
+
+        function addMessageToChat(role, content) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+
+            // Ensure content is defined
+            const safeContent = content || '(empty response)';
+
+            if (role === 'assistant') {
+                try {
+                    contentDiv.innerHTML = marked.parse(safeContent);
+                    contentDiv.querySelectorAll('pre code').forEach(block => {
+                        hljs.highlightElement(block);
+                    });
+                } catch (err) {
+                    console.error('Markdown parsing error:', err);
+                    contentDiv.textContent = safeContent;
+                }
+            } else {
+                contentDiv.textContent = safeContent;
+            }
+
+            messageDiv.appendChild(contentDiv);
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        async function loadChatHistory() {
+            try {
+                const response = await fetch('http://127.0.0.1:3001/api/chat-history');
+                const data = await response.json();
+                const historyList = document.getElementById('historyList');
+                historyList.innerHTML = '';
+
+                if (data.chats.length === 0) {
+                    historyList.innerHTML = '<div class="loading">No chats yet</div>';
+                    return;
+                }
+
+                data.chats.forEach(chat => {
+                    const item = document.createElement('div');
+                    item.className = 'history-item';
+                    const sopMatch = chat.name.match(/^([^_]+(?:_[^_]+)*)_chat/);
+                    const sopName = sopMatch ? sopMatch[1].replace(/_/g, ' ') : 'General';
+                    const date = new Date(chat.created).toLocaleDateString();
+
+                    item.innerHTML = `
+                        <div>${sopName !== 'chat' ? sopName : 'Chat'}</div>
+                        <div class="history-item-date">${date}</div>
+                        ${sopName !== 'chat' ? `<div class="history-item-sop">${sopName}</div>` : ''}
+                    `;
+                    item.addEventListener('click', () => loadChatFromHistory(chat));
+                    historyList.appendChild(item);
+                });
+            } catch (error) {
+                console.error('Error loading history:', error);
+            }
+        }
+
+        async function checkOllamaStatus() {
+            try {
+                const response = await fetch('http://127.0.0.1:3001/api/ollama-status');
+                const data = await response.json();
+                
+                if (!data.running) {
+                    console.warn('⚠️ Ollama is not running. Start with: ollama serve');
+                    console.warn('📝 Status:', data.message);
+                } else if (!data.mistralAvailable) {
+                    console.warn('⚠️ Mistral model not found. Available models:', data.models);
+                    console.warn('📥 Install with: ollama pull mistral');
+                } else {
+                    console.log('✅ Ollama ready with models:', data.models);
+                }
+            } catch (error) {
+                console.error('Failed to check Ollama status:', error);
+            }
+        }
+
+        async function loadChatFromHistory(chat) {
+            try {
+                const response = await fetch(`http://127.0.0.1:3001/api/chat/${encodeURIComponent(chat.name)}`);
+                if (!response.ok) throw new Error('Failed to load chat');
+                
+                const data = await response.json();
+                const chatMessages = document.getElementById('chatMessages');
+                chatMessages.innerHTML = '';
+
+                if (!data.content) {
+                    chatMessages.innerHTML = '<div class="loading">Empty chat</div>';
+                    return;
+                }
+
+                const lines = data.content.split('\n');
+                let currentRole = null;
+                let currentContent = '';
+
+                lines.forEach(line => {
+                    if (line.startsWith('**User:**')) {
+                        if (currentContent && currentRole) {
+                            addMessageToChat(currentRole, currentContent);
+                        }
+                        currentRole = 'user';
+                        currentContent = line.replace('**User:**', '').trim();
+                    } else if (line.startsWith('**Assistant:**')) {
+                        if (currentContent && currentRole) {
+                            addMessageToChat(currentRole, currentContent);
+                        }
+                        currentRole = 'assistant';
+                        currentContent = line.replace('**Assistant:**', '').trim();
+                    } else if (currentRole && line.trim()) {
+                        currentContent += '\n' + line;
+                    }
+                });
+
+                // Add final message if exists
+                if (currentContent && currentRole) {
+                    addMessageToChat(currentRole, currentContent);
+                }
+            } catch (error) {
+                console.error('Error loading chat:', error);
+            }
+        }
+    </script>
+</body>
+</html>

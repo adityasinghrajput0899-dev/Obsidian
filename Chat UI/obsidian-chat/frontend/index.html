@@ -1,0 +1,2516 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Obsidian AI Chat Agent</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/dist/highlight.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/atom-one-dark.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ═══════════════════════════════════════
+           LAYOUT  — 4 columns
+           [Vault 200px] [SOP Preview flex] [Chat flex] [History 240px]
+        ═══════════════════════════════════════ */
+        .app {
+            display: grid;
+            grid-template-columns: 200px 1fr 1fr 240px;
+            height: 100vh;
+            transition: grid-template-columns 0.2s ease;
+        }
+        .app.history-collapsed {
+            grid-template-columns: 200px 1fr 1fr 36px;
+        }
+
+        /* ── shared panel chrome ── */
+        .panel {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-right: 1px solid #21262d;
+        }
+        .panel:last-child { border-right: none; }
+
+        .panel-header {
+            padding: 11px 14px;
+            background: #161b22;
+            border-bottom: 1px solid #21262d;
+            font-size: 0.82em;
+            font-weight: 600;
+            color: #58a6ff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            flex-shrink: 0;
+            user-select: none;
+        }
+
+        .panel-header-left { display: flex; align-items: center; gap: 6px; }
+
+        /* ═══════════════════════════════════════
+           VAULT PANEL
+        ═══════════════════════════════════════ */
+        .vault-panel { background: #161b22; }
+
+        .vault-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 6px;
+        }
+
+        .vault-item {
+            padding: 8px 10px;
+            margin: 2px 0;
+            background: #0d1117;
+            border: 1px solid #21262d;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.78em;
+            line-height: 1.5;
+            word-break: break-word;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .vault-item:hover { background: #1c2128; border-color: #388bfd; }
+        .vault-item.active {
+            background: #0d2044;
+            border-color: #388bfd;
+            color: #79c0ff;
+        }
+
+        /* ═══════════════════════════════════════
+           SOP PREVIEW PANEL
+        ═══════════════════════════════════════ */
+        .preview-panel { background: #0d1117; }
+
+        .preview-toolbar {
+            display: flex;
+            gap: 5px;
+        }
+
+        .toggle-btn {
+            padding: 3px 9px;
+            font-size: 0.72em;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            cursor: pointer;
+            background: transparent;
+            color: #8b949e;
+            transition: all 0.15s;
+        }
+        .toggle-btn:hover { border-color: #58a6ff; color: #58a6ff; }
+        .toggle-btn.on { background: #1f3a5f; border-color: #388bfd; color: #79c0ff; }
+
+        .use-btn {
+            padding: 3px 10px;
+            font-size: 0.72em;
+            border: 1px solid #238636;
+            border-radius: 4px;
+            cursor: pointer;
+            background: transparent;
+            color: #3fb950;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .use-btn:hover { background: #238636; color: #fff; }
+        .use-btn.active { background: #238636; color: #fff; border-color: #2ea043; }
+
+        .preview-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 22px;
+        }
+
+        /* empty state */
+        .preview-empty {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            color: #30363d;
+            text-align: center;
+            padding: 30px;
+        }
+        .preview-empty-icon { font-size: 2.8em; }
+        .preview-empty-hint { font-size: 0.82em; line-height: 1.7; color: #484f58; }
+
+        /* truncation banner */
+        .truncation-banner {
+            background: #0d2044;
+            border: 1px solid #388bfd;
+            border-radius: 6px;
+            padding: 9px 13px;
+            margin-bottom: 16px;
+            font-size: 0.8em;
+            line-height: 1.6;
+            color: #79c0ff;
+        }
+
+        /* ── rendered markdown ── */
+        .md h1, .md h2, .md h3, .md h4, .md h5, .md h6 {
+            color: #e6edf3;
+            margin: 1.1em 0 0.45em;
+            line-height: 1.3;
+        }
+        .md h1 { font-size: 1.45em; border-bottom: 1px solid #21262d; padding-bottom: 7px; }
+        .md h2 { font-size: 1.2em;  border-bottom: 1px solid #161b22; padding-bottom: 5px; }
+        .md h3 { font-size: 1.05em; color: #79c0ff; }
+        .md p  { margin: 0.6em 0; line-height: 1.75; font-size: 0.9em; }
+        .md ul, .md ol { margin: 0.4em 0 0.4em 1.4em; }
+        .md li { margin: 0.25em 0; line-height: 1.65; font-size: 0.9em; }
+        .md blockquote {
+            border-left: 3px solid #388bfd;
+            padding: 4px 12px;
+            margin: 0.7em 0;
+            color: #8b949e;
+            background: #161b22;
+            border-radius: 0 4px 4px 0;
+        }
+        .md code {
+            background: #161b22;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.84em;
+            font-family: 'Courier New', monospace;
+            color: #ff7b72;
+        }
+        .md pre {
+            background: #161b22;
+            border: 1px solid #21262d;
+            padding: 13px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 0.7em 0;
+        }
+        .md pre code { background: none; padding: 0; color: #c9d1d9; font-size: 0.84em; }
+        .md table { border-collapse: collapse; width: 100%; margin: 0.7em 0; font-size: 0.86em; }
+        .md th, .md td { border: 1px solid #21262d; padding: 6px 11px; text-align: left; }
+        .md th { background: #161b22; color: #e6edf3; }
+        .md tr:nth-child(even) { background: #0d1117; }
+        .md a { color: #388bfd; text-decoration: none; }
+        .md a:hover { text-decoration: underline; }
+        .md hr { border: none; border-top: 1px solid #21262d; margin: 1em 0; }
+        .md strong { color: #e6edf3; }
+        .md em { color: #a5d6ff; }
+
+        /* raw text */
+        .raw {
+            font-family: 'Courier New', monospace;
+            font-size: 0.8em;
+            line-height: 1.75;
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: #c9d1d9;
+        }
+
+        /* ═══════════════════════════════════════
+           CHAT PANEL
+        ═══════════════════════════════════════ */
+        .chat-panel { background: #0d1117; }
+
+        .chat-context-pill {
+            display: inline-block;
+            background: #0d2044;
+            border: 1px solid #388bfd;
+            color: #79c0ff;
+            font-size: 0.7em;
+            padding: 2px 8px;
+            border-radius: 20px;
+            margin-top: 4px;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .chat-context-pill.none { background: transparent; border-color: #30363d; color: #484f58; }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .msg { display: flex; animation: pop 0.18s ease; }
+        .msg.user { justify-content: flex-end; }
+        .msg.assistant { justify-content: flex-start; }
+
+        @keyframes pop {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .msg-bubble {
+            max-width: 82%;
+            padding: 9px 13px;
+            border-radius: 10px;
+            font-size: 0.86em;
+            line-height: 1.65;
+            word-wrap: break-word;
+            overflow-x: auto;
+        }
+        .msg.user .msg-bubble { background: #238636; color: #fff; border-radius: 10px 10px 2px 10px; }
+        .msg.assistant .msg-bubble { background: #161b22; border: 1px solid #21262d; border-radius: 10px 10px 10px 2px; }
+
+        .msg-bubble code { background: #0d1117; padding: 1px 5px; border-radius: 3px; font-size: 0.88em; }
+        .msg-bubble pre { background: #0d1117; padding: 9px; border-radius: 5px; overflow-x: auto; margin: 7px 0; }
+        .msg-bubble pre code { padding: 0; background: none; }
+
+        .chat-input-row {
+            padding: 10px;
+            background: #161b22;
+            border-top: 1px solid #21262d;
+            display: flex;
+            gap: 7px;
+            flex-shrink: 0;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 8px 11px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #c9d1d9;
+            resize: none;
+            max-height: 80px;
+            font-family: inherit;
+            font-size: 0.86em;
+            line-height: 1.5;
+        }
+        .chat-input:focus { outline: none; border-color: #388bfd; box-shadow: 0 0 0 2px rgba(56,139,253,0.15); }
+
+        .send-btn {
+            padding: 8px 16px;
+            background: #238636;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.84em;
+            align-self: flex-end;
+            transition: background 0.15s;
+            white-space: nowrap;
+        }
+        .send-btn:hover { background: #2ea043; }
+        .send-btn:disabled { background: #21262d; color: #484f58; cursor: not-allowed; }
+
+        /* ═══════════════════════════════════════
+           HISTORY PANEL
+        ═══════════════════════════════════════ */
+        .history-panel { background: #161b22; }
+
+        .history-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 6px;
+        }
+
+        .hist-item {
+            padding: 8px 10px;
+            margin: 2px 0;
+            background: #0d1117;
+            border: 1px solid #21262d;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.76em;
+            transition: all 0.15s;
+        }
+        .hist-item:hover { background: #1c2128; border-color: #388bfd; }
+        .hist-item.active { background: #0d2044; border-color: #388bfd; }
+        .hist-title { color: #e6edf3; margin-bottom: 2px; font-weight: 500; }
+        .hist-date  { color: #8b949e; font-size: 0.85em; }
+        .hist-sop {
+            display: inline-block;
+            background: #238636;
+            color: #fff;
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 0.8em;
+            margin-top: 3px;
+        }
+
+        /* ── SOP EDITOR ── */
+        .editor-panel {
+            border-top: 1px solid #21262d;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            max-height: 55vh;
+        }
+
+        .editor-toggle {
+            padding: 9px 14px;
+            background: #161b22;
+            border: none;
+            border-bottom: 1px solid #21262d;
+            color: #8b949e;
+            font-size: 0.78em;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: left;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: color 0.15s;
+        }
+        .editor-toggle:hover { color: #58a6ff; }
+        .editor-toggle.open { color: #58a6ff; }
+
+        .editor-body {
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            padding: 10px 8px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .editor-body.open { display: flex; }
+
+        .editor-label {
+            font-size: 0.72em;
+            color: #8b949e;
+            margin-bottom: 2px;
+        }
+
+        .editor-select {
+            width: 100%;
+            padding: 5px 7px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            color: #c9d1d9;
+            font-size: 0.78em;
+            cursor: pointer;
+        }
+        .editor-select:focus { outline: none; border-color: #388bfd; }
+
+        .editor-textarea {
+            width: 100%;
+            padding: 8px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            color: #c9d1d9;
+            font-size: 0.78em;
+            font-family: 'Courier New', monospace;
+            resize: vertical;
+            min-height: 120px;
+            line-height: 1.5;
+        }
+        .editor-textarea:focus { outline: none; border-color: #388bfd; }
+
+        .editor-btn {
+            padding: 6px 10px;
+            font-size: 0.75em;
+            font-weight: 600;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.15s;
+            width: 100%;
+        }
+        .editor-btn.save  { background: #238636; color: #fff; }
+        .editor-btn.save:hover  { background: #2ea043; }
+        .editor-btn.merge { background: #1f6feb; color: #fff; }
+        .editor-btn.merge:hover { background: #388bfd; }
+        .editor-btn:disabled { background: #21262d; color: #484f58; cursor: not-allowed; }
+
+        .editor-divider {
+            border: none;
+            border-top: 1px solid #21262d;
+            margin: 4px 0;
+        }
+
+        .editor-merge-name {
+            width: 100%;
+            padding: 5px 7px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            color: #c9d1d9;
+            font-size: 0.78em;
+        }
+        .editor-merge-name:focus { outline: none; border-color: #388bfd; }
+
+        .editor-status {
+            font-size: 0.72em;
+            padding: 5px 7px;
+            border-radius: 4px;
+            display: none;
+        }
+        .editor-status.ok  { background: #0d2a0d; color: #3fb950; display: block; }
+        .editor-status.err { background: #3d1a1a; color: #ff7b72; display: block; }
+        /* ── ADMIN APPROVAL PANEL ── */
+        .approval-bar {
+            display: none;
+            padding: 10px 14px;
+            background: #1a1200;
+            border-bottom: 1px solid #f0883e;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+            flex-shrink: 0;
+        }
+        .approval-bar.visible { display: flex; }
+        .approval-bar-label {
+            font-size: 0.78em;
+            color: #f0883e;
+            font-weight: 600;
+            flex: 1;
+        }
+        .approval-btn {
+            padding: 4px 12px;
+            font-size: 0.75em;
+            font-weight: 600;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .approval-btn.approve { background: #238636; color: #fff; }
+        .approval-btn.approve:hover { background: #2ea043; }
+        .approval-btn.reject  { background: #da3633; color: #fff; }
+        .approval-btn.reject:hover  { background: #f85149; }
+
+        /* ── ADMIN LOGIN MODAL ── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.visible { display: flex; }
+        .modal {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 28px 32px;
+            width: 340px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .modal h3 { font-size: 1em; color: #e6edf3; margin: 0; }
+        .modal-sub { font-size: 0.8em; color: #8b949e; margin-top: -8px; }
+        .modal input {
+            padding: 8px 10px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 5px;
+            color: #c9d1d9;
+            font-size: 0.85em;
+            width: 100%;
+        }
+        .modal input:focus { outline: none; border-color: #388bfd; }
+        .modal-error { font-size: 0.78em; color: #ff7b72; display: none; }
+        .modal-error.visible { display: block; }
+        .modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+        .modal-btn {
+            padding: 7px 18px;
+            font-size: 0.82em;
+            font-weight: 600;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .modal-btn.primary { background: #238636; color: #fff; }
+        .modal-btn.primary:hover { background: #2ea043; }
+        .modal-btn.secondary { background: #21262d; color: #8b949e; border: 1px solid #30363d; }
+        .modal-btn.secondary:hover { color: #c9d1d9; }
+
+        /* ── APPROVAL REQUEST CARDS ── */
+        .approval-card {
+            background: #1a1200;
+            border: 1px solid #f0883e44;
+            border-radius: 6px;
+            padding: 10px 14px;
+            margin: 8px 0;
+            font-size: 0.82em;
+        }
+        .approval-card.approved { background: #0d2a0d; border-color: #23863644; }
+        .approval-card.rejected { background: #3d1a1a; border-color: #da363344; }
+        .approval-card-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+        .approval-card-title { font-weight: 600; color: #f0883e; }
+        .approval-card-title.approved { color: #3fb950; }
+        .approval-card-title.rejected { color: #ff7b72; }
+        .approval-card-btns { display: flex; gap: 6px; }
+        .approval-card-question { color: #8b949e; font-size: 0.9em; margin-top: 4px; }
+
+        /* ── REJECT REASON INPUT ── */
+        .reject-reason-wrap { display: none; margin-top: 8px; }
+        .reject-reason-wrap.visible { display: block; }
+        .reject-reason-input {
+            width: 100%;
+            padding: 6px 8px;
+            background: #0d1117;
+            border: 1px solid #da3633;
+            border-radius: 4px;
+            color: #c9d1d9;
+            font-size: 0.82em;
+            margin-bottom: 6px;
+        }
+        .reject-reason-input:focus { outline: none; }
+
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+
+        /* ── misc ── */
+        .dim { padding: 18px; text-align: center; color: #484f58; font-size: 0.82em; }
+        .err-banner {
+            margin: 8px;
+            padding: 9px 12px;
+            background: #3d1a1a;
+            border: 1px solid #da3633;
+            border-radius: 5px;
+            color: #ff7b72;
+            font-size: 0.82em;
+        }
+
+        /* ── context menu ── */
+        .ctx-menu {
+            position: fixed;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 4px 0;
+            z-index: 9999;
+            min-width: 140px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        }
+        .ctx-item {
+            padding: 7px 14px;
+            font-size: 0.8em;
+            cursor: pointer;
+            color: #c9d1d9;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.1s;
+        }
+        .ctx-item:hover { background: #21262d; }
+        .ctx-item.danger { color: #ff7b72; }
+        .ctx-item.danger:hover { background: #3d1a1a; }
+        .ctx-divider { border: none; border-top: 1px solid #21262d; margin: 3px 0; }
+
+        /* ── rename input overlay ── */
+        .rename-input {
+            width: 100%;
+            padding: 4px 6px;
+            background: #0d1117;
+            border: 1px solid #388bfd;
+            border-radius: 3px;
+            color: #c9d1d9;
+            font-size: 0.78em;
+            font-family: inherit;
+        }
+        .rename-input:focus { outline: none; }
+
+        /* ── toast ── */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1f3a1f;
+            border: 1px solid #238636;
+            color: #3fb950;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 0.82em;
+            z-index: 9999;
+            animation: fadeInUp 0.3s ease;
+            white-space: nowrap;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+            to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        /* ── NEURAL GRAPH POPUP (draggable + resizable) ── */
+        .neural-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 20000;
+            pointer-events: none;
+        }
+        .neural-overlay.visible { display: block; }
+        .neural-container {
+            position: absolute;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 70vw;
+            height: 70vh;
+            min-width: 320px;
+            min-height: 240px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(88,166,255,0.1);
+            pointer-events: all;
+            resize: both;
+            display: flex;
+            flex-direction: column;
+        }
+        .neural-header {
+            padding: 10px 16px;
+            background: #161b22;
+            border-bottom: 1px solid #21262d;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: grab;
+            user-select: none;
+            flex-shrink: 0;
+            z-index: 2;
+        }
+        .neural-header:active { cursor: grabbing; }
+        .neural-title {
+            font-size: 0.85em;
+            font-weight: 600;
+            color: #e6edf3;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .neural-stats {
+            font-size: 0.72em;
+            color: #8b949e;
+            display: flex;
+            gap: 14px;
+        }
+        .neural-stats span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .neural-close {
+            background: transparent;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #8b949e;
+            font-size: 0.8em;
+            padding: 5px 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .neural-close:hover {
+            border-color: #f85149;
+            color: #f85149;
+        }
+        .neural-canvas-wrap {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        .neural-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .neural-tooltip {
+            position: absolute;
+            pointer-events: none;
+            background: #161b22;
+            border: 1px solid #58a6ff;
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 0.75em;
+            color: #e6edf3;
+            opacity: 0;
+            transition: opacity 0.15s;
+            z-index: 3;
+            white-space: nowrap;
+        }
+        .neural-tooltip.visible { opacity: 1; }
+        .neural-loading {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 12px;
+            color: #8b949e;
+            font-size: 0.85em;
+        }
+        .neural-loading .spinner {
+            width: 32px; height: 32px;
+            border: 3px solid #21262d;
+            border-top-color: #58a6ff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        .neural-resize-handle {
+            position: absolute;
+            bottom: 0; right: 0;
+            width: 18px; height: 18px;
+            cursor: nwse-resize;
+            z-index: 5;
+            opacity: 0.4;
+            transition: opacity 0.15s;
+        }
+        .neural-resize-handle:hover { opacity: 0.8; }
+        .neural-resize-handle::after {
+            content: '';
+            position: absolute;
+            bottom: 4px; right: 4px;
+            width: 8px; height: 8px;
+            border-right: 2px solid #58a6ff;
+            border-bottom: 2px solid #58a6ff;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+<div class="app">
+
+    <!-- ══════════════ VAULT ══════════════ -->
+    <div class="panel vault-panel">
+        <div class="panel-header">
+            <div class="panel-header-left">📁 Vault</div>
+            <div style="display:flex;gap:5px;align-items:center;">
+                <button onclick="openNeuralGraph()" title="View Neural Network"
+                   style="font-size:0.72em;padding:3px 8px;border:1px solid #30363d;border-radius:4px;color:#8b949e;background:transparent;cursor:pointer;transition:all 0.15s;white-space:nowrap;"
+                   onmouseover="this.style.borderColor='#58a6ff';this.style.color='#58a6ff'"
+                   onmouseout="this.style.borderColor='#30363d';this.style.color='#8b949e'">
+                    🧠 Neural
+                </button>
+                <a href="/api/open-obsidian" target="_blank" title="Open Obsidian app"
+                   style="font-size:0.72em;padding:3px 8px;border:1px solid #30363d;border-radius:4px;color:#8b949e;text-decoration:none;transition:all 0.15s;white-space:nowrap;"
+                   onmouseover="this.style.borderColor='#a371f7';this.style.color='#a371f7'"
+                   onmouseout="this.style.borderColor='#30363d';this.style.color='#8b949e'">
+                    🔮 Obsidian
+                </a>
+            </div>
+        </div>
+        <div class="vault-list" id="vaultList">
+            <div class="dim">Loading...</div>
+        </div>
+
+        <!-- SOP EDITOR -->
+        <div class="editor-panel">
+            <button class="editor-toggle" id="editorToggle" onclick="toggleEditor()">
+                <span>✏️ SOP Editor</span>
+                <span id="editorArrow">▲</span>
+            </button>
+            <div class="editor-body open" id="editorBody">
+
+                <!-- EDIT SECTION -->
+                <div class="editor-label">Edit a SOP</div>
+                <select class="editor-select" id="editSelect" onchange="loadEditFile()">
+                    <option value="">— select file —</option>
+                </select>
+                <textarea class="editor-textarea" id="editContent" placeholder="Select a file above to edit..."></textarea>
+                <div class="editor-status" id="editStatus"></div>
+                <button class="editor-btn save" id="saveBtn" onclick="saveFile()" disabled>💾 Save Changes</button>
+
+                <hr class="editor-divider">
+
+                <!-- MERGE SECTION -->
+                <div class="editor-label">Merge two SOPs</div>
+                <select class="editor-select" id="mergeSelectA">
+                    <option value="">— first file —</option>
+                </select>
+                <select class="editor-select" id="mergeSelectB">
+                    <option value="">— second file —</option>
+                </select>
+                <input class="editor-merge-name" id="mergeNewName" placeholder="New file name (e.g. Merged SOP.md)" />
+                <div class="editor-status" id="mergeStatus"></div>
+                <button class="editor-btn merge" id="mergeBtn" onclick="mergeFiles()">🔀 Merge into New File</button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════ SOP PREVIEW ══════════════ -->
+    <div class="panel preview-panel">
+        <div class="panel-header">
+            <div class="panel-header-left">
+                📖 <span id="previewTitle">SOP Preview</span>
+            </div>
+            <div class="preview-toolbar">
+                <a id="openObsidianFile" href="#" target="_blank"
+                   style="display:none;font-size:0.72em;padding:3px 8px;border:1px solid #30363d;border-radius:4px;color:#8b949e;text-decoration:none;transition:all 0.15s;white-space:nowrap;"
+                   onmouseover="this.style.borderColor='#a371f7';this.style.color='#a371f7'"
+                   onmouseout="this.style.borderColor='#30363d';this.style.color='#8b949e'">
+                    🔮 Open in Obsidian
+                </a>
+                <button class="use-btn" id="useInChatBtn" onclick="toggleContext()" style="display:none">+ Use in Chat</button>
+                <button class="toggle-btn on" id="btnMd" onclick="setViewMode('md')">Rendered</button>
+                <button class="toggle-btn"    id="btnRaw" onclick="setViewMode('raw')">Raw</button>
+            </div>
+        </div>
+        <!-- Approval action bar — shown only for Approvals/ files -->
+        <div class="approval-bar" id="approvalBar">
+            <span class="approval-bar-label">📋 Approval file — review pending requests below</span>
+            <button class="approval-btn approve" id="adminLoginBtn">🔑 Admin Login to Review</button>
+        </div>
+        <div class="preview-body" id="previewBody">
+            <div class="preview-empty">
+                <div class="preview-empty-icon">📋</div>
+                <div class="preview-empty-hint">
+                    Select a file from the vault<br>to read it here.<br><br>
+                    Then ask the AI questions<br>about it in the chat →
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════ CHAT ══════════════ -->
+    <div class="panel chat-panel">
+        <div class="panel-header">
+            <div style="display:flex;flex-direction:column;gap:3px;min-width:0;">
+                <div class="panel-header-left">💬 AI Chat</div>
+                <div class="chat-context-pill none" id="contextPill">No file in context — chatting freely</div>
+                <div id="contextFilesList" style="display:none;margin-top:4px;display:flex;flex-wrap:wrap;gap:3px;max-width:100%;"></div>
+            </div>
+        </div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input-row">
+            <div style="display:flex;flex-direction:column;gap:6px;flex:1;">
+                <button onclick="newChat()" style="padding:5px 10px;background:transparent;border:1px solid #30363d;border-radius:5px;color:#8b949e;font-size:0.75em;cursor:pointer;text-align:left;transition:all 0.15s;"
+                    onmouseover="this.style.borderColor='#58a6ff';this.style.color='#58a6ff'"
+                    onmouseout="this.style.borderColor='#30363d';this.style.color='#8b949e'">
+                    ✏️ New Chat
+                </button>
+                <div style="display:flex;gap:7px;">
+                    <textarea class="chat-input" id="chatInput"
+                        placeholder="Ask about the SOP or anything else… (Enter to send, Shift+Enter for new line)"
+                        rows="2"></textarea>
+                    <button class="send-btn" id="sendBtn">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════ HISTORY ══════════════ -->
+    <div class="panel history-panel" id="historyPanel">
+        <div class="panel-header" style="cursor:pointer;" id="historyPanelHeader">
+            <div class="panel-header-left">📜 History</div>
+            <span id="historyPanelArrow" style="font-size:0.85em;color:#484f58;" title="Collapse history panel">◀</span>
+        </div>
+        <div id="historyPanelBody" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+            <div class="history-list" id="historyList">
+                <div class="dim">No chats yet</div>
+            </div>
+        </div>
+    </div>
+
+</div>
+<script>
+// ── STATE ──────────────────────────────────────────────
+const ADMIN = { username: null, password: null, pendingAction: null, pendingDate: null };
+
+const S = {
+    file: null,
+    content: null,
+    truncated: false,
+    sizeKB: 0,
+    contextFiles: [],
+    history: [],
+    loading: false,
+    viewMode: 'md',
+    chatId: null,   // stable ID for current chat session — reused across all messages
+};
+
+// ── BOOT ───────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    loadVault();
+    loadHistory();
+    connectLiveUpdates();
+    checkPublicUrl();
+
+    const btn = document.getElementById('sendBtn');
+    const inp = document.getElementById('chatInput');
+    btn.addEventListener('click', sendMessage);
+    inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    });
+    inp.addEventListener('input', function () {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 80) + 'px';
+    });
+
+    // Modal keyboard shortcuts — registered here so DOM is ready
+    document.addEventListener('keydown', e => {
+        const modal = document.getElementById('adminModal');
+        if (!modal) return;
+        if (e.key === 'Escape') closeAdminModal();
+        if (e.key === 'Enter' && modal.classList.contains('visible')) submitAdminLogin();
+    });
+
+    document.getElementById('adminLoginBtn').addEventListener('click', () => openAdminModal('approve-all'));
+    document.getElementById('modalCancelBtn').addEventListener('click', closeAdminModal);
+    document.getElementById('modalLoginBtn').addEventListener('click', submitAdminLogin);
+
+    // ── History panel collapse toggle ──
+    let historyPanelCollapsed = false;
+    document.getElementById('historyPanelHeader').addEventListener('click', () => {
+        historyPanelCollapsed = !historyPanelCollapsed;
+        const app    = document.querySelector('.app');
+        const body   = document.getElementById('historyPanelBody');
+        const arrow  = document.getElementById('historyPanelArrow');
+        app.classList.toggle('history-collapsed', historyPanelCollapsed);
+        body.style.display  = historyPanelCollapsed ? 'none' : 'flex';
+        arrow.textContent   = historyPanelCollapsed ? '▶' : '◀';
+        arrow.title         = historyPanelCollapsed ? 'Expand history panel' : 'Collapse history panel';
+    });
+});
+
+// ── LIVE UPDATES ───────────────────────────────────────
+function connectLiveUpdates() {
+    const es = new EventSource('/api/events');
+
+    es.onmessage = (e) => {
+        try {
+            const msg = JSON.parse(e.data);
+            if (msg.type === 'vault-changed') {
+                loadVault();
+                if (S.file && msg.file === S.file.name) {
+                    openFileByPath(S.file);
+                }
+            }
+            if (msg.type === 'history-changed') {
+                loadHistory();
+            }
+            if (msg.type === 'approval-added') {
+                loadVault();
+                // Show a brief toast notification
+                showToast(`📋 SOP change request logged → Approvals/${msg.date}.md (Entry #${msg.entry})`);
+            }
+        } catch (_) {}
+    };
+
+    es.onerror = () => {
+        // Auto-reconnects — EventSource handles this natively
+    };
+}
+
+// Re-open a file silently (used when vault file changes on disk)
+async function openFileByPath(file) {
+    try {
+        const r = await fetch(`/api/file?path=${encodeURIComponent(file.path)}`);
+        if (!r.ok) return;
+        const d = await r.json();
+        S.file      = file;
+        S.content   = d.content;
+        S.truncated = d.truncated;
+        S.sizeKB    = d.sizeKB;
+        renderPreview();
+        // If this file is in the multi-file context, update its content too
+        const ctxIdx = S.contextFiles.findIndex(cf => cf.file.path === file.path);
+        if (ctxIdx !== -1) {
+            S.contextFiles[ctxIdx].content = d.content;
+        }
+    } catch (_) {}
+}
+
+// ── NETWORK INFO ───────────────────────────────────────
+async function checkPublicUrl() {
+    // no-op — network info shown in server terminal on startup
+}
+
+// ── NEW CHAT ───────────────────────────────────────────
+function newChat() {
+    document.getElementById('chatMessages').innerHTML = '';
+    S.history = [];
+    S.chatId  = null;   // will be assigned on first message
+    S.contextFiles = [];
+    updateContextPill();
+    const useBtn = document.getElementById('useInChatBtn');
+    useBtn.textContent = '+ Use in Chat';
+    useBtn.classList.remove('active');
+    document.getElementById('chatInput').focus();
+}
+
+// ── CONTEXT PILL ───────────────────────────────────────
+function updateContextPill() {
+    const pill = document.getElementById('contextPill');
+    const list = document.getElementById('contextFilesList');
+
+    if (!S.contextFiles.length) {
+        pill.textContent = 'No file in context — chatting freely';
+        pill.className = 'chat-context-pill none';
+        list.style.display = 'none';
+        list.innerHTML = '';
+        return;
+    }
+
+    pill.textContent = `📄 ${S.contextFiles.length} file${S.contextFiles.length > 1 ? 's' : ''} in context:`;
+    pill.className = 'chat-context-pill';
+    list.style.display = 'flex';
+    list.innerHTML = S.contextFiles.map((cf, i) => `
+        <span style="display:inline-flex;align-items:center;gap:3px;background:#0d2044;border:1px solid #388bfd;color:#79c0ff;font-size:0.68em;padding:1px 6px;border-radius:10px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${cf.file.name}">
+            ${cf.file.name.replace('.md','')}
+            <span onclick="removeContextFile(${i})" style="cursor:pointer;color:#8b949e;margin-left:2px;font-size:1.1em;line-height:1;" title="Remove">×</span>
+        </span>
+    `).join('');
+}
+
+function removeContextFile(index) {
+    S.contextFiles.splice(index, 1);
+    updateContextPill();
+    // Update the Use in Chat button state for the currently previewed file
+    if (S.file) {
+        const useBtn = document.getElementById('useInChatBtn');
+        const inContext = S.contextFiles.some(cf => cf.file.path === S.file.path);
+        useBtn.textContent = inContext ? '✓ In Chat' : '+ Use in Chat';
+        useBtn.classList.toggle('active', inContext);
+    }
+}
+
+// ── TOAST NOTIFICATION ─────────────────────────────────
+function showToast(msg, duration = 4000) {
+    const existing = document.querySelector('.toast');
+    if (existing) existing.remove();
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), duration);
+}
+
+// ── VAULT ──────────────────────────────────────────────
+async function loadVault() {
+    try {
+        const r = await fetch('/api/vault');
+        const d = await r.json();
+        const list = document.getElementById('vaultList');
+        list.innerHTML = '';
+        if (!d.files.length) { list.innerHTML = '<div class="dim">No files found</div>'; return; }
+
+        // Separate root files from folder files
+        const rootFiles = d.files.filter(f => !f.folder);
+        const folderFiles = d.files.filter(f => f.folder);
+
+        // Group folder files by folder name
+        const folders = {};
+        folderFiles.forEach(f => {
+            if (!folders[f.folder]) folders[f.folder] = [];
+            folders[f.folder].push(f);
+        });
+
+        // Render root files first
+        rootFiles.forEach(f => {
+            const el = document.createElement('div');
+            el.className = 'vault-item';
+            el.innerHTML = `<span style="opacity:.6;margin-right:5px;">📄</span>${f.name}`;
+            el.addEventListener('click', () => openFile(f, el));
+            el.addEventListener('contextmenu', e => showCtxMenu(e, f, el));
+            list.appendChild(el);
+        });
+
+        // Render folders
+        // Track collapsed state per folder (persisted in memory)
+        if (!window._folderCollapsed) window._folderCollapsed = {};
+
+        Object.entries(folders).forEach(([folderName, files]) => {
+            const isApprovals    = folderName.toLowerCase().includes('approval');
+            const isTemp         = folderName.toLowerCase().includes('temp');
+            const isUpdated      = folderName.toLowerCase().includes('updated');
+            const isSOP          = folderName.toLowerCase().includes('sop');
+
+            // Pick icon and colour per folder type
+            const icon  = isApprovals ? '📋' : isTemp ? '🕐' : isUpdated ? '✅' : isSOP ? '📑' : '📁';
+            const color = isApprovals ? '#f0883e' : isTemp ? '#a371f7' : isUpdated ? '#3fb950' : '#8b949e';
+
+            // Default: Approvals open, everything else collapsed
+            if (window._folderCollapsed[folderName] === undefined) {
+                window._folderCollapsed[folderName] = !isApprovals;
+            }
+            const collapsed = window._folderCollapsed[folderName];
+
+            // ── Folder header (clickable toggle) ──
+            const header = document.createElement('div');
+            header.style.cssText = [
+                'padding:6px 10px 6px 8px',
+                'font-size:0.72em',
+                'font-weight:600',
+                `color:${color}`,
+                'margin-top:8px',
+                'border-top:1px solid #21262d',
+                'display:flex',
+                'align-items:center',
+                'justify-content:space-between',
+                'cursor:pointer',
+                'user-select:none',
+                'border-radius:4px',
+                'transition:background 0.15s',
+            ].join(';');
+
+            const count = files.length;
+            header.innerHTML = `
+                <span style="display:flex;align-items:center;gap:5px;">
+                    ${icon} ${folderName}
+                    <span style="background:#21262d;color:#8b949e;border-radius:10px;padding:1px 6px;font-size:0.85em;font-weight:500;">${count}</span>
+                </span>
+                <span class="folder-arrow" style="font-size:0.9em;color:#484f58;">${collapsed ? '▼' : '▲'}</span>
+            `;
+            header.addEventListener('mouseenter', () => header.style.background = '#1c2128');
+            header.addEventListener('mouseleave', () => header.style.background = 'transparent');
+            list.appendChild(header);
+
+            // ── Files container ──
+            const container = document.createElement('div');
+            container.style.cssText = collapsed
+                ? 'display:none;'
+                : 'display:block;';
+            list.appendChild(container);
+
+            // Toggle on header click
+            header.addEventListener('click', () => {
+                const isNowCollapsed = container.style.display !== 'none';
+                container.style.display = isNowCollapsed ? 'none' : 'block';
+                window._folderCollapsed[folderName] = isNowCollapsed;
+                header.querySelector('.folder-arrow').textContent = isNowCollapsed ? '▼' : '▲';
+            });
+
+            // Sort: approvals & temp newest first, others alphabetical
+            const sorted = (isApprovals || isTemp || isUpdated)
+                ? [...files].sort((a, b) => b.name.localeCompare(a.name))
+                : files;
+
+            sorted.forEach(f => {
+                const el = document.createElement('div');
+                el.className = 'vault-item';
+                el.style.paddingLeft = '18px';
+
+                const fileIcon = isApprovals ? '📋' : isTemp ? '�' : isUpdated ? '✅' : '📄';
+                el.innerHTML = `<span style="opacity:.7;margin-right:5px;">${fileIcon}</span>${f.name}`;
+                el.addEventListener('click', () => openFile(f, el));
+                container.appendChild(el);
+            });
+        });
+
+        populateEditorSelects(d.files);
+    } catch {
+        document.getElementById('vaultList').innerHTML = '<div class="err-banner">❌ Failed to load vault</div>';
+    }
+}
+
+// ── OPEN FILE ──────────────────────────────────────────
+async function openFile(file, el) {
+    document.querySelectorAll('.vault-item').forEach(i => i.classList.remove('active'));
+    el.classList.add('active');
+
+    document.getElementById('previewTitle').textContent = file.name;
+    document.getElementById('previewBody').innerHTML = '<div class="dim">Loading…</div>';
+
+    try {
+        const r = await fetch(`/api/file?path=${encodeURIComponent(file.path)}`);
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const d = await r.json();
+
+        S.file      = file;
+        S.content   = d.content;
+        S.truncated = d.truncated;
+        S.sizeKB    = d.sizeKB;
+
+        // Show/hide approval bar based on whether this is an Approvals file
+        const approvalBar = document.getElementById('approvalBar');
+        const isApprovalFile = file.path && file.path.startsWith('Approvals/');
+        approvalBar.classList.toggle('visible', isApprovalFile);
+
+        renderPreview();
+
+        // Show the "Use in Chat" button — reflect whether this file is already in context
+        const useBtn = document.getElementById('useInChatBtn');
+        useBtn.style.display = '';
+        const inContext = S.contextFiles.some(cf => cf.file.path === file.path);
+        useBtn.textContent = inContext ? '✓ In Chat' : '+ Use in Chat';
+        useBtn.classList.toggle('active', inContext);
+
+        // Show "Open in Obsidian" link for this specific file
+        const obsLink = document.getElementById('openObsidianFile');
+        obsLink.href = `/api/open-obsidian?file=${encodeURIComponent(file.path)}`;
+        obsLink.style.display = '';
+
+    } catch (e) {
+        document.getElementById('previewBody').innerHTML =
+            `<div class="err-banner">❌ Could not load file: ${e.message}</div>`;
+    }
+}
+
+// ── TOGGLE CONTEXT ─────────────────────────────────────
+function toggleContext() {
+    const useBtn = document.getElementById('useInChatBtn');
+    if (!S.file) return;
+
+    const existingIdx = S.contextFiles.findIndex(cf => cf.file.path === S.file.path);
+
+    if (existingIdx !== -1) {
+        // Already in context — remove it
+        S.contextFiles.splice(existingIdx, 1);
+        useBtn.textContent = '+ Use in Chat';
+        useBtn.classList.remove('active');
+    } else {
+        // Add to context
+        S.contextFiles.push({ file: S.file, content: S.content });
+        useBtn.textContent = '✓ In Chat';
+        useBtn.classList.add('active');
+    }
+    updateContextPill();
+}
+
+// ── RENDER PREVIEW ─────────────────────────────────────
+function renderPreview() {
+    const body = document.getElementById('previewBody');
+    body.innerHTML = '';
+
+    if (S.truncated) {
+        const b = document.createElement('div');
+        b.className = 'truncation-banner';
+        b.innerHTML = `⚠️ <strong>Large file (${S.sizeKB} KB)</strong> — showing first 100 KB. The AI uses a trimmed version for context.`;
+        body.appendChild(b);
+    }
+
+    if (S.viewMode === 'md') {
+        const div = document.createElement('div');
+        div.className = 'md';
+        try {
+            div.innerHTML = marked.parse(S.content);
+            div.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
+        } catch { div.textContent = S.content; }
+        body.appendChild(div);
+    } else {
+        const pre = document.createElement('pre');
+        pre.className = 'raw';
+        pre.textContent = S.content;
+        body.appendChild(pre);
+    }
+}
+
+function setViewMode(mode) {
+    S.viewMode = mode;
+    document.getElementById('btnMd').classList.toggle('on', mode === 'md');
+    document.getElementById('btnRaw').classList.toggle('on', mode === 'raw');
+    if (S.content) renderPreview();
+}
+
+// ── SEND MESSAGE ───────────────────────────────────────
+async function sendMessage() {
+    const inp = document.getElementById('chatInput');
+    const msg = inp.value.trim();
+    if (!msg || S.loading) return;
+
+    appendMsg('user', msg);
+    inp.value = '';
+    inp.style.height = 'auto';
+    S.loading = true;
+    const btn = document.getElementById('sendBtn');
+    btn.disabled = true;
+    btn.textContent = '…';
+
+    // remember the question for source attribution
+    const currentQuestion = msg;
+
+    // assistant bubble
+    const wrap = document.getElementById('chatMessages');
+    const row = document.createElement('div');
+    row.className = 'msg assistant';
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    bubble.style.cssText = 'color:#484f58;font-style:italic;';
+    bubble.textContent = '…';
+    row.appendChild(bubble);
+    wrap.appendChild(row);
+    wrap.scrollTop = wrap.scrollHeight;
+
+    let full = '', started = false;
+    const thinkTicker = null; // no animation — just show dots
+
+    // Timeout — if no response token in 30s, show error
+    let lastTokenTime = Date.now();
+    const timeoutCheck = setInterval(() => {
+        if (Date.now() - lastTokenTime > 60000 && !started) {
+            clearInterval(timeoutCheck);
+            bubble.style.cssText = 'color:#ff7b72;font-style:normal;';
+            bubble.textContent = '❌ Request timed out. The AI took too long to respond. Try a shorter question or reload.';
+            S.loading = false;
+            btn.disabled = false;
+            btn.textContent = 'Send';
+        }
+    }, 5000);
+
+    try {
+        const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: msg,
+                context: S.contextFiles.length
+                    ? S.contextFiles.map(cf =>
+                        `=== ${cf.file.name} ===\n${cf.content}`
+                      ).join('\n\n')
+                    : null,
+                selectedFile: S.contextFiles.length
+                    ? S.contextFiles.map(cf => cf.file.name).join(', ')
+                    : null,
+                history: S.history,
+                chatId : S.chatId,   // null on first message, server assigns it
+            })
+        });
+
+        if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Server error'); }
+
+        const reader = res.body.getReader();
+        const dec = new TextDecoder();
+        let buf = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buf += dec.decode(value, { stream: true });
+            const lines = buf.split('\n');
+            buf = lines.pop();
+
+            for (const line of lines) {
+                if (!line.startsWith('data: ')) continue;
+                try {
+                    const j = JSON.parse(line.slice(6));
+                    if (j.token) {
+                        lastTokenTime = Date.now();
+                        if (!started) {
+                            clearInterval(thinkTicker);
+                            bubble.style.cssText = '';
+                            bubble.textContent = '';
+                            started = true;
+                        }
+                        full += j.token;
+                        bubble.textContent = full;
+                        wrap.scrollTop = wrap.scrollHeight;
+                    }
+                    if (j.done) {
+                        clearInterval(timeoutCheck);
+                        try {
+                            bubble.innerHTML = marked.parse(full);
+                            bubble.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
+                        } catch { bubble.textContent = full; }
+                        S.history = j.history || S.history;
+                        // Store the stable chatId for this session
+                        if (j.chatFile && !S.chatId) S.chatId = j.chatFile;
+                        loadHistory();
+                    }
+                    if (j.error) throw new Error(j.error);
+                } catch { /* skip bad chunks */ }
+            }
+        }
+    } catch (e) {
+        clearInterval(timeoutCheck);
+        clearInterval(thinkTicker);
+        bubble.style.cssText = 'color:#ff7b72;font-style:normal;';
+        bubble.textContent = '❌ ' + e.message;
+    } finally {
+        S.loading = false;
+        btn.disabled = false;
+        btn.textContent = 'Send';
+        wrap.scrollTop = wrap.scrollHeight;
+    }
+}
+
+function appendMsg(role, content) {
+    const wrap = document.getElementById('chatMessages');
+    const row = document.createElement('div');
+    row.className = 'msg ' + role;
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    if (role === 'assistant') {
+        try {
+            bubble.innerHTML = marked.parse(content);
+            bubble.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
+        } catch { bubble.textContent = content; }
+    } else {
+        bubble.textContent = content;
+    }
+    row.appendChild(bubble);
+    wrap.appendChild(row);
+    wrap.scrollTop = wrap.scrollHeight;
+}
+
+// ── HISTORY ────────────────────────────────────────────
+async function loadHistory() {
+    try {
+        const r = await fetch('/api/chat-history');
+        const d = await r.json();
+        renderHistory(d);
+    } catch { /* silent */ }
+}
+
+function renderHistory(data) {
+    const list = document.getElementById('historyList');
+    list.innerHTML = '';
+
+    const groups = data.groups || [];
+    if (!groups.length || groups.every(g => !g.chats.length)) {
+        list.innerHTML = '<div class="dim">No chats yet</div>';
+        return;
+    }
+
+    if (!window._histGroupCollapsed) window._histGroupCollapsed = {};
+
+    groups.forEach(group => {
+        if (!group.chats.length) return;
+
+        // Default: today open, everything else collapsed
+        if (window._histGroupCollapsed[group.dateKey] === undefined) {
+            window._histGroupCollapsed[group.dateKey] = group.label !== 'Today';
+        }
+        const collapsed = window._histGroupCollapsed[group.dateKey];
+
+        // ── Group header ──
+        const header = document.createElement('div');
+        header.style.cssText = [
+            'padding:5px 10px 5px 8px',
+            'font-size:0.72em',
+            'font-weight:600',
+            'color:#58a6ff',
+            'margin-top:4px',
+            'border-top:1px solid #21262d',
+            'display:flex',
+            'align-items:center',
+            'justify-content:space-between',
+            'cursor:pointer',
+            'user-select:none',
+            'border-radius:3px',
+            'transition:background 0.15s',
+        ].join(';');
+
+        const count = group.chats.length;
+        header.innerHTML = `
+            <span>${group.label}</span>
+            <span style="display:flex;align-items:center;gap:4px;">
+                <span style="background:#21262d;color:#8b949e;border-radius:8px;padding:0px 5px;font-size:0.85em;">${count}</span>
+                <span style="color:#484f58;font-size:0.9em;">${collapsed ? '▼' : '▲'}</span>
+            </span>
+        `;
+        header.addEventListener('mouseenter', () => header.style.background = '#1c2128');
+        header.addEventListener('mouseleave', () => header.style.background = 'transparent');
+        list.appendChild(header);
+
+        // ── Chats container ──
+        const container = document.createElement('div');
+        container.style.display = collapsed ? 'none' : 'block';
+        list.appendChild(container);
+
+        header.addEventListener('click', () => {
+            const isNowCollapsed = container.style.display !== 'none';
+            container.style.display = isNowCollapsed ? 'none' : 'block';
+            window._histGroupCollapsed[group.dateKey] = isNowCollapsed;
+            header.querySelector('span:last-child span:last-child').textContent = isNowCollapsed ? '▼' : '▲';
+        });
+
+        group.chats.forEach(chat => {
+            const el = document.createElement('div');
+            el.className = 'hist-item';
+            const m = chat.name.match(/^([^_]+(?:_[^_]+)*)_chat/);
+            const sop = m ? m[1].replace(/_/g, ' ') : null;
+            const time = new Date(chat.created).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+            el.innerHTML = `
+                <div class="hist-title">${sop && sop !== 'chat' ? sop : 'Chat'}</div>
+                <div class="hist-date">${time}</div>
+                ${sop && sop !== 'chat' ? `<span class="hist-sop">${sop}</span>` : ''}
+            `;
+            el.addEventListener('click', e => loadHistoryChat(chat, e.currentTarget));
+            container.appendChild(el);
+        });
+    });
+}
+
+// ── SOP EDITOR ────────────────────────────────────────
+function toggleEditor() {
+    const body  = document.getElementById('editorBody');
+    const arrow = document.getElementById('editorArrow');
+    const btn   = document.getElementById('editorToggle');
+    const open  = body.classList.toggle('open');
+    arrow.textContent = open ? '▲' : '▼';
+    btn.classList.toggle('open', open);
+}
+
+function populateEditorSelects(files) {
+    ['editSelect','mergeSelectA','mergeSelectB'].forEach(id => {
+        const sel = document.getElementById(id);
+        const cur = sel.value;
+        const labels = { editSelect:'— select file —', mergeSelectA:'— first file —', mergeSelectB:'— second file —' };
+        sel.innerHTML = `<option value="">${labels[id]}</option>`;
+        files.forEach(f => {
+            const opt = document.createElement('option');
+            opt.value = f.path;
+            opt.textContent = f.name;
+            sel.appendChild(opt);
+        });
+        if (cur) sel.value = cur;
+    });
+}
+
+async function loadEditFile() {
+    const sel     = document.getElementById('editSelect');
+    const content = document.getElementById('editContent');
+    const saveBtn = document.getElementById('saveBtn');
+    document.getElementById('editStatus').className = 'editor-status';
+    if (!sel.value) { content.value = ''; saveBtn.disabled = true; return; }
+    content.value = 'Loading…';
+    saveBtn.disabled = true;
+    try {
+        const r = await fetch(`/api/file?path=${encodeURIComponent(sel.value)}`);
+        const d = await r.json();
+        content.value = d.content;
+        saveBtn.disabled = false;
+    } catch { showEditorStatus('editStatus','err','❌ Failed to load file'); }
+}
+
+async function saveFile() {
+    const sel     = document.getElementById('editSelect');
+    const content = document.getElementById('editContent');
+    const saveBtn = document.getElementById('saveBtn');
+    if (!sel.value) return;
+    saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+    try {
+        const r = await fetch('/api/file/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filePath: sel.value, content: content.value })
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error);
+        showEditorStatus('editStatus','ok','✅ Saved successfully');
+    } catch (e) { showEditorStatus('editStatus','err','❌ ' + e.message); }
+    finally { saveBtn.disabled = false; saveBtn.textContent = '💾 Save Changes'; }
+}
+
+async function mergeFiles() {
+    const selA  = document.getElementById('mergeSelectA').value;
+    const selB  = document.getElementById('mergeSelectB').value;
+    const name  = document.getElementById('mergeNewName').value.trim();
+    const btn   = document.getElementById('mergeBtn');
+    if (!selA || !selB)  { showEditorStatus('mergeStatus','err','❌ Select both files'); return; }
+    if (selA === selB)   { showEditorStatus('mergeStatus','err','❌ Select two different files'); return; }
+    if (!name)           { showEditorStatus('mergeStatus','err','❌ Enter a name for the merged file'); return; }
+    btn.disabled = true; btn.textContent = 'Merging…';
+    showEditorStatus('mergeStatus','','');
+    try {
+        const [rA, rB] = await Promise.all([
+            fetch(`/api/file?path=${encodeURIComponent(selA)}`),
+            fetch(`/api/file?path=${encodeURIComponent(selB)}`)
+        ]);
+        const [dA, dB] = await Promise.all([rA.json(), rB.json()]);
+        const nameA = document.getElementById('mergeSelectA').selectedOptions[0].text;
+        const nameB = document.getElementById('mergeSelectB').selectedOptions[0].text;
+        const merged = `# ${name.replace('.md','')}\n\n> Merged from: **${nameA}** and **${nameB}**\n> Date: ${new Date().toLocaleDateString()}\n\n---\n\n## ${nameA}\n\n${dA.content}\n\n---\n\n## ${nameB}\n\n${dB.content}\n`;
+        const r = await fetch('/api/file/merge', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileA: selA, fileB: selB, newFileName: name, mergedContent: merged })
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error);
+        showEditorStatus('mergeStatus','ok','✅ Created: ' + d.fileName);
+        document.getElementById('mergeNewName').value = '';
+    } catch (e) { showEditorStatus('mergeStatus','err','❌ ' + e.message); }
+    finally { btn.disabled = false; btn.textContent = '🔀 Merge into New File'; }
+}
+
+function showEditorStatus(id, type, msg) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.className = 'editor-status' + (type ? ' ' + type : '');
+}
+
+// ── CONTEXT MENU (right-click on vault items) ──────────
+let ctxTarget = null; // the file object being right-clicked
+
+function showCtxMenu(e, file, el) {
+    e.preventDefault();
+    ctxTarget = { file, el };
+
+    const menu = document.getElementById('ctxMenu');
+    menu.style.display = 'block';
+
+    // Position near cursor, keep within viewport
+    const x = Math.min(e.clientX, window.innerWidth - 160);
+    const y = Math.min(e.clientY, window.innerHeight - 80);
+    menu.style.left = x + 'px';
+    menu.style.top  = y + 'px';
+}
+
+function hideCtxMenu() {
+    document.getElementById('ctxMenu').style.display = 'none';
+    ctxTarget = null;
+}
+
+// Close on any click outside
+document.addEventListener('click', hideCtxMenu);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideCtxMenu(); });
+
+// Wire up menu actions
+document.getElementById('ctxRename').addEventListener('click', async () => {
+    if (!ctxTarget) return;
+    const { file, el } = ctxTarget;
+    hideCtxMenu();
+
+    // Inline rename — replace text with input
+    const oldName = file.name.replace('.md', '');
+    const input = document.createElement('input');
+    input.className = 'rename-input';
+    input.value = oldName;
+    el.innerHTML = '';
+    el.appendChild(input);
+    input.focus();
+    input.select();
+
+    const doRename = async () => {
+        const newName = input.value.trim();
+        if (!newName || newName === oldName) { loadVault(); return; }
+        try {
+            const r = await fetch('/api/file/rename', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filePath: file.path, newName })
+            });
+            const d = await r.json();
+            if (!r.ok) throw new Error(d.error);
+            showToast(`✏️ Renamed to "${d.newName}"`);
+            loadVault();
+        } catch (err) {
+            showToast(`❌ ${err.message}`);
+            loadVault();
+        }
+    };
+
+    input.addEventListener('blur', doRename);
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+        if (e.key === 'Escape') { loadVault(); }
+    });
+});
+
+document.getElementById('ctxDelete').addEventListener('click', async () => {
+    if (!ctxTarget) return;
+    const { file } = ctxTarget;
+    hideCtxMenu();
+
+    if (!confirm(`Delete "${file.name}"?\n\nThis cannot be undone.`)) return;
+
+    try {
+        const r = await fetch(`/api/file?path=${encodeURIComponent(file.path)}`, { method: 'DELETE' });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error);
+        showToast(`🗑️ Deleted "${file.name}"`);
+        // Clear from context if it was there
+        S.contextFiles = S.contextFiles.filter(cf => cf.file.path !== file.path);
+        updateContextPill();
+        // Clear preview if this was the open file
+        if (S.file && S.file.path === file.path) {
+            S.file = null; S.content = null;
+            document.getElementById('previewTitle').textContent = 'SOP Preview';
+            document.getElementById('previewBody').innerHTML = '<div class="preview-empty"><div class="preview-empty-icon">📋</div><div class="preview-empty-hint">Select a file from the vault<br>to read it here.</div></div>';
+            document.getElementById('useInChatBtn').style.display = 'none';
+            document.getElementById('openObsidianFile').style.display = 'none';
+        }
+        loadVault();
+    } catch (err) {
+        showToast(`❌ ${err.message}`);
+    }
+});
+
+// ── ADMIN APPROVAL WORKFLOW ────────────────────────────────
+
+function openAdminModal(action, dateKey) {
+    ADMIN.pendingAction = action;
+    ADMIN.pendingDate   = dateKey || S.file?.path?.match(/Approvals\/(\d{4}-\d{2}-\d{2})\.md/)?.[1];
+    document.getElementById('adminUser').value  = '';
+    document.getElementById('adminPass').value  = '';
+    document.getElementById('adminError').classList.remove('visible');
+    document.getElementById('adminModal').classList.add('visible');
+    setTimeout(() => document.getElementById('adminUser').focus(), 50);
+}
+
+function closeAdminModal() {
+    document.getElementById('adminModal').classList.remove('visible');
+    ADMIN.pendingAction = null;
+}
+
+async function submitAdminLogin() {
+    const username = document.getElementById('adminUser').value.trim();
+    const password = document.getElementById('adminPass').value;
+    const errEl    = document.getElementById('adminError');
+    errEl.classList.remove('visible');
+
+    if (!username || !password) {
+        errEl.textContent = '❌ Please enter both username and password.';
+        errEl.classList.add('visible');
+        return;
+    }
+
+    // Store credentials and load the approval review panel
+    ADMIN.username = username;
+    ADMIN.password = password;
+    closeAdminModal();
+    await loadApprovalReview(ADMIN.pendingDate, username, password);
+}
+
+async function loadApprovalReview(dateKey, username, password) {
+    if (!dateKey) return;
+
+    // Verify credentials with a test call
+    const testRes = await fetch('/api/approvals?date=' + dateKey);
+    const testData = await testRes.json();
+    if (!testData.requests) { showToast('❌ Could not load approval data'); return; }
+
+    // Replace preview body with approval review cards
+    const body = document.getElementById('previewBody');
+    body.innerHTML = '';
+
+    const header = document.createElement('div');
+    header.style.cssText = 'padding:16px 0 8px;font-size:0.9em;font-weight:600;color:#f0883e;';
+    header.textContent = `📋 Approval Requests — ${dateKey}`;
+    body.appendChild(header);
+
+    const pending = testData.requests.filter(r => r.pending);
+    const done    = testData.requests.filter(r => !r.pending);
+
+    if (!testData.requests.length) {
+        body.innerHTML += '<div class="dim">No requests found for this date.</div>';
+        return;
+    }
+
+    if (pending.length) {
+        const pendingHeader = document.createElement('div');
+        pendingHeader.style.cssText = 'font-size:0.75em;color:#8b949e;margin:8px 0 4px;text-transform:uppercase;letter-spacing:.05em;';
+        pendingHeader.textContent = `⏳ Pending (${pending.length})`;
+        body.appendChild(pendingHeader);
+
+        pending.forEach(req => {
+            body.appendChild(buildApprovalCard(req, dateKey, username, password));
+        });
+    }
+
+    if (done.length) {
+        const doneHeader = document.createElement('div');
+        doneHeader.style.cssText = 'font-size:0.75em;color:#8b949e;margin:16px 0 4px;text-transform:uppercase;letter-spacing:.05em;';
+        doneHeader.textContent = `✅ Processed (${done.length})`;
+        body.appendChild(doneHeader);
+        done.forEach(req => {
+            body.appendChild(buildApprovalCard(req, dateKey, username, password));
+        });
+    }
+}
+
+function buildApprovalCard(req, dateKey, username, password) {
+    const card = document.createElement('div');
+    const isPending  = req.pending;
+    const isApproved = req.status.includes('Approved');
+    const isRejected = req.status.includes('Rejected');
+
+    card.className = 'approval-card' + (isApproved ? ' approved' : isRejected ? ' rejected' : '');
+    card.id = `approval-card-${req.entryNum}`;
+
+    const statusIcon = isApproved ? '✅' : isRejected ? '❌' : '⏳';
+    const titleClass = isApproved ? 'approved' : isRejected ? 'rejected' : '';
+
+    const header = document.createElement('div');
+    header.className = 'approval-card-header';
+
+    const title = document.createElement('span');
+    title.className = `approval-card-title ${titleClass}`;
+    title.textContent = `${statusIcon} Request #${req.entryNum} — ${req.time}`;
+    header.appendChild(title);
+
+    if (isPending) {
+        const btns = document.createElement('div');
+        btns.className = 'approval-card-btns';
+
+        const approveBtn = document.createElement('button');
+        approveBtn.className = 'approval-btn approve';
+        approveBtn.textContent = '✅ Approve';
+        approveBtn.addEventListener('click', () => approveRequest(req.entryNum, dateKey, username, password));
+
+        const rejectBtn = document.createElement('button');
+        rejectBtn.className = 'approval-btn reject';
+        rejectBtn.textContent = '❌ Reject';
+        rejectBtn.addEventListener('click', () => showRejectInput(req.entryNum));
+
+        btns.appendChild(approveBtn);
+        btns.appendChild(rejectBtn);
+        header.appendChild(btns);
+    } else {
+        const statusSpan = document.createElement('span');
+        statusSpan.style.cssText = 'font-size:0.78em;color:#8b949e;';
+        statusSpan.textContent = req.status;
+        header.appendChild(statusSpan);
+    }
+
+    card.appendChild(header);
+
+    const info = document.createElement('div');
+    info.className = 'approval-card-question';
+    info.innerHTML = `<strong style="color:#c9d1d9;">Source:</strong> ${req.source || 'N/A'}<br>
+        <strong style="color:#c9d1d9;">Request:</strong> ${req.question}
+        ${req.tempFile ? `<br><strong style="color:#c9d1d9;">Preview file:</strong> <span style="color:#58a6ff;">${req.tempFile}</span>` : ''}`;
+    card.appendChild(info);
+
+    if (isPending) {
+        const rejectWrap = document.createElement('div');
+        rejectWrap.className = 'reject-reason-wrap';
+        rejectWrap.id = `reject-wrap-${req.entryNum}`;
+
+        const reasonInput = document.createElement('input');
+        reasonInput.className = 'reject-reason-input';
+        reasonInput.id = `reject-reason-${req.entryNum}`;
+        reasonInput.placeholder = 'Reason for rejection (optional)';
+
+        const rejectBtnRow = document.createElement('div');
+        rejectBtnRow.style.cssText = 'display:flex;gap:6px;';
+
+        const confirmBtn = document.createElement('button');
+        confirmBtn.className = 'approval-btn reject';
+        confirmBtn.textContent = 'Confirm Reject';
+        confirmBtn.addEventListener('click', () => rejectRequest(req.entryNum, dateKey, username, password));
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'approval-btn';
+        cancelBtn.style.cssText = 'background:#21262d;color:#8b949e;';
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.addEventListener('click', () => hideRejectInput(req.entryNum));
+
+        rejectBtnRow.appendChild(confirmBtn);
+        rejectBtnRow.appendChild(cancelBtn);
+        rejectWrap.appendChild(reasonInput);
+        rejectWrap.appendChild(rejectBtnRow);
+        card.appendChild(rejectWrap);
+    }
+
+    return card;
+}
+
+function showRejectInput(entryNum) {
+    document.getElementById(`reject-wrap-${entryNum}`)?.classList.add('visible');
+}
+function hideRejectInput(entryNum) {
+    document.getElementById(`reject-wrap-${entryNum}`)?.classList.remove('visible');
+}
+
+async function approveRequest(entryNum, dateKey, username, password) {
+    const btn = document.querySelector(`#approval-card-${entryNum} .approval-btn.approve`);
+    if (btn) { btn.disabled = true; btn.textContent = 'Approving…'; }
+
+    try {
+        const res  = await fetch('/api/approve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password, dateKey, entryNum })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+            showToast('❌ ' + (data.error || 'Approval failed'));
+            if (btn) { btn.disabled = false; btn.textContent = '✅ Approve'; }
+            return;
+        }
+
+        showToast(`✅ Request #${entryNum} approved${data.updatedFile ? ' → ' + data.updatedFile : ''}`);
+        // Reload the review panel
+        await loadApprovalReview(dateKey, username, password);
+        loadVault();
+    } catch (err) {
+        showToast('❌ ' + err.message);
+        if (btn) { btn.disabled = false; btn.textContent = '✅ Approve'; }
+    }
+}
+
+async function rejectRequest(entryNum, dateKey, username, password) {
+    const reason = document.getElementById(`reject-reason-${entryNum}`)?.value.trim() || '';
+    const btn = document.querySelector(`#approval-card-${entryNum} .approval-btn.reject`);
+    if (btn) { btn.disabled = true; btn.textContent = 'Rejecting…'; }
+
+    try {
+        const res  = await fetch('/api/reject', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password, dateKey, entryNum, reason })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+            showToast('❌ ' + (data.error || 'Rejection failed'));
+            if (btn) { btn.disabled = false; btn.textContent = 'Confirm Reject'; }
+            return;
+        }
+
+        showToast(`❌ Request #${entryNum} rejected`);
+        await loadApprovalReview(dateKey, username, password);
+    } catch (err) {
+        showToast('❌ ' + err.message);
+        if (btn) { btn.disabled = false; btn.textContent = 'Confirm Reject'; }
+    }
+}
+
+async function loadHistoryChat(chat, el) {
+    try {
+        const r = await fetch(`/api/chat/${encodeURIComponent(chat.relativeName || chat.name)}`);
+        if (!r.ok) throw new Error('Failed to load chat');
+        const d = await r.json();
+        const wrap = document.getElementById('chatMessages');
+        wrap.innerHTML = '';
+
+        // Parse the markdown chat file — split on **User:** / **Assistant:** markers
+        // Preserve blank lines within a message (they're part of markdown formatting)
+        const lines = d.content.split('\n');
+        let role = null, buf = [];
+
+        const flush = () => {
+            if (role && buf.length) {
+                // Trim leading/trailing blank lines but keep internal ones
+                const text = buf.join('\n').replace(/^\n+|\n+$/g, '');
+                if (text) appendMsg(role, text);
+            }
+            buf = [];
+        };
+
+        for (const line of lines) {
+            if (line.startsWith('**User:**')) {
+                flush();
+                role = 'user';
+                const rest = line.replace('**User:**', '').trim();
+                if (rest) buf.push(rest);
+            } else if (line.startsWith('**Assistant:**')) {
+                flush();
+                role = 'assistant';
+                const rest = line.replace('**Assistant:**', '').trim();
+                if (rest) buf.push(rest);
+            } else if (role) {
+                // Include blank lines — they matter for markdown rendering
+                buf.push(line);
+            }
+        }
+        flush();
+
+        document.querySelectorAll('.hist-item').forEach(i => i.classList.remove('active'));
+        el.classList.add('active');
+        wrap.scrollTop = wrap.scrollHeight;
+    } catch (e) {
+        console.error('Failed to load chat:', e);
+    }
+}
+</script>
+<!-- Admin Login Modal -->
+<div class="modal-overlay" id="adminModal">
+    <div class="modal">
+        <h3>🔑 Admin Login</h3>
+        <p class="modal-sub" id="adminModalSub">Enter your admin credentials to review approval requests.</p>
+        <input type="text"     id="adminUser" placeholder="Username" autocomplete="username" />
+        <input type="password" id="adminPass" placeholder="Password" autocomplete="current-password" />
+        <div class="modal-error" id="adminError">❌ Invalid credentials. Please try again.</div>
+        <div class="modal-btns">
+            <button class="modal-btn secondary" id="modalCancelBtn">Cancel</button>
+            <button class="modal-btn primary"   id="modalLoginBtn">Login & Review</button>
+        </div>
+    </div>
+</div>
+
+<!-- Context Menu -->
+<div class="ctx-menu" id="ctxMenu" style="display:none;">
+    <div class="ctx-item" id="ctxRename">✏️ Rename</div>
+    <hr class="ctx-divider">
+    <div class="ctx-item danger" id="ctxDelete">🗑️ Delete</div>
+</div>
+
+<!-- ══════════════ NEURAL GRAPH POPUP ══════════════ -->
+<div class="neural-overlay" id="neuralOverlay">
+    <div class="neural-container" id="neuralContainer">
+        <div class="neural-header" id="neuralHeader">
+            <div class="neural-title">🧠 Neural Network</div>
+            <div class="neural-stats" id="neuralStats">
+                <span>⬡ <em id="neuralNodeCount">0</em> notes</span>
+                <span>⟷ <em id="neuralEdgeCount">0</em> links</span>
+            </div>
+            <button class="neural-close" onclick="closeNeuralGraph()">✕</button>
+        </div>
+        <div class="neural-canvas-wrap">
+            <canvas class="neural-canvas" id="neuralCanvas"></canvas>
+            <div class="neural-tooltip" id="neuralTooltip"></div>
+            <div class="neural-loading" id="neuralLoading">
+                <div class="spinner"></div>
+                <div>Scanning vault connections...</div>
+            </div>
+        </div>
+        <div class="neural-resize-handle" id="neuralResizeHandle"></div>
+    </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// NEURAL GRAPH — Force-directed graph visualization
+// ══════════════════════════════════════════════════════
+(function() {
+    let graphData = null;
+    let animationFrame = null;
+    let nodes = [];
+    let edges = [];
+    let canvas, ctx;
+    let width, height;
+    let transform = { x: 0, y: 0, scale: 1 };
+    let dragging = null;
+    let panning = false;
+    let panStart = { x: 0, y: 0 };
+    let hoveredNode = null;
+    let simulationRunning = false;
+
+    // Color palette for folders
+    const COLORS = [
+        '#58a6ff', '#a371f7', '#3fb950', '#f0883e', '#f778ba',
+        '#79c0ff', '#d2a8ff', '#7ee787', '#ffa657', '#ff7b72',
+        '#56d4dd', '#e3b341', '#b392f0', '#7ee2a8', '#ffab70'
+    ];
+    const folderColors = {};
+    let colorIndex = 0;
+
+    function getFolderColor(folder) {
+        const key = folder || '__root__';
+        if (!folderColors[key]) {
+            folderColors[key] = COLORS[colorIndex % COLORS.length];
+            colorIndex++;
+        }
+        return folderColors[key];
+    }
+
+    window.openNeuralGraph = async function() {
+        const overlay = document.getElementById('neuralOverlay');
+        overlay.classList.add('visible');
+        document.getElementById('neuralLoading').style.display = 'flex';
+
+        // Setup canvas
+        canvas = document.getElementById('neuralCanvas');
+        ctx = canvas.getContext('2d');
+        resizeCanvas();
+
+        // Fetch graph data
+        try {
+            const resp = await fetch('/api/graph');
+            graphData = await resp.json();
+            document.getElementById('neuralNodeCount').textContent = graphData.totalNodes;
+            document.getElementById('neuralEdgeCount').textContent = graphData.totalEdges;
+        } catch(e) {
+            document.getElementById('neuralLoading').innerHTML =
+                '<div style="color:#f85149">Failed to load graph data</div>';
+            return;
+        }
+
+        // Initialize nodes with positions
+        initGraph();
+        document.getElementById('neuralLoading').style.display = 'none';
+
+        // Start simulation
+        simulationRunning = true;
+        attachCanvasEvents();
+        simulate();
+    };
+
+    window.closeNeuralGraph = function() {
+        const overlay = document.getElementById('neuralOverlay');
+        overlay.classList.remove('visible');
+        simulationRunning = false;
+        if (animationFrame) cancelAnimationFrame(animationFrame);
+        detachCanvasEvents();
+    };
+
+    function resizeCanvas() {
+        const wrap = canvas.parentElement;
+        const rect = wrap.getBoundingClientRect();
+        canvas.width = rect.width * window.devicePixelRatio;
+        canvas.height = rect.height * window.devicePixelRatio;
+        canvas.style.width = rect.width + 'px';
+        canvas.style.height = rect.height + 'px';
+        ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+        width = rect.width;
+        height = rect.height;
+    }
+
+    function initGraph() {
+        // Build adjacency for sizing
+        const degree = {};
+        graphData.edges.forEach(e => {
+            degree[e.source] = (degree[e.source] || 0) + 1;
+            degree[e.target] = (degree[e.target] || 0) + 1;
+        });
+
+        // Place nodes in a circle initially — spread out wide
+        const cx = width / 2, cy = height / 2;
+        const radius = Math.min(width, height) * 0.42;
+        const n = graphData.nodes.length;
+
+        nodes = graphData.nodes.map((node, i) => {
+            const angle = (2 * Math.PI * i) / n;
+            const jitter = (Math.random() - 0.5) * radius * 0.5;
+            return {
+                ...node,
+                x: cx + (radius + jitter) * Math.cos(angle),
+                y: cy + (radius + jitter) * Math.sin(angle),
+                vx: 0, vy: 0,
+                degree: degree[node.id] || 0,
+                radius: Math.max(5, Math.min(16, 5 + (degree[node.id] || 0) * 1.5)),
+                color: getFolderColor(node.folder)
+            };
+        });
+
+        edges = graphData.edges.map(e => ({
+            source: nodes.findIndex(n => n.id === e.source),
+            target: nodes.findIndex(n => n.id === e.target),
+            type: e.type || 'link'
+        })).filter(e => e.source >= 0 && e.target >= 0);
+
+        // Center transform
+        transform = { x: 0, y: 0, scale: 1 };
+    }
+
+    function simulate() {
+        if (!simulationRunning) return;
+
+        // Force-directed simulation step
+        const alpha = 0.4;
+        const repulsion = 5000;
+        const attraction = 0.002;
+        const centerForce = 0.003;
+        const damping = 0.82;
+        const cx = width / 2, cy = height / 2;
+
+        // Repulsion between all nodes
+        for (let i = 0; i < nodes.length; i++) {
+            let fx = 0, fy = 0;
+            for (let j = 0; j < nodes.length; j++) {
+                if (i === j) continue;
+                const dx = nodes[i].x - nodes[j].x;
+                const dy = nodes[i].y - nodes[j].y;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                if (dist < 600) {
+                    const force = repulsion / (dist * dist);
+                    fx += (dx / dist) * force;
+                    fy += (dy / dist) * force;
+                }
+            }
+            nodes[i].vx += fx * alpha;
+            nodes[i].vy += fy * alpha;
+        }
+
+        // Attraction along edges (with ideal distance)
+        const idealDist = 150;
+        edges.forEach(e => {
+            const s = nodes[e.source], t = nodes[e.target];
+            const dx = t.x - s.x, dy = t.y - s.y;
+            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            const force = (dist - idealDist) * attraction;
+            s.vx += (dx / dist) * force;
+            s.vy += (dy / dist) * force;
+            t.vx -= (dx / dist) * force;
+            t.vy -= (dy / dist) * force;
+        });
+
+        // Center gravity
+        nodes.forEach(n => {
+            n.vx += (cx - n.x) * centerForce;
+            n.vy += (cy - n.y) * centerForce;
+        });
+
+        // Apply velocities with damping
+        nodes.forEach(n => {
+            if (n === dragging) return;
+            n.vx *= damping;
+            n.vy *= damping;
+            n.x += n.vx;
+            n.y += n.vy;
+        });
+
+        draw();
+        animationFrame = requestAnimationFrame(simulate);
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, width, height);
+        ctx.save();
+        ctx.translate(transform.x, transform.y);
+        ctx.scale(transform.scale, transform.scale);
+
+        // Draw edges
+        ctx.lineWidth = 0.5;
+        edges.forEach(e => {
+            const s = nodes[e.source], t = nodes[e.target];
+            const isHovered = hoveredNode && (e.source === nodes.indexOf(hoveredNode) || e.target === nodes.indexOf(hoveredNode));
+            
+            // Color by edge type
+            if (isHovered) {
+                ctx.strokeStyle = 'rgba(88,166,255,0.7)';
+                ctx.lineWidth = 1.8;
+            } else {
+                const typeColors = { link: 'rgba(88,166,255,0.5)', name: 'rgba(163,113,247,0.4)', keyword: 'rgba(63,185,80,0.3)', folder: 'rgba(48,54,61,0.5)' };
+                ctx.strokeStyle = typeColors[e.type] || 'rgba(48,54,61,0.5)';
+                ctx.lineWidth = e.type === 'link' ? 1.2 : (e.type === 'name' ? 0.8 : 0.5);
+            }
+            
+            ctx.beginPath();
+            ctx.moveTo(s.x, s.y);
+            ctx.lineTo(t.x, t.y);
+            ctx.stroke();
+        });
+
+        // Draw nodes
+        nodes.forEach(n => {
+            const isHovered = n === hoveredNode;
+            const isConnected = hoveredNode && edges.some(e =>
+                (nodes[e.source] === hoveredNode && nodes[e.target] === n) ||
+                (nodes[e.target] === hoveredNode && nodes[e.source] === n)
+            );
+
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, isHovered ? n.radius * 1.5 : n.radius, 0, Math.PI * 2);
+
+            if (isHovered) {
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = n.color;
+                ctx.shadowBlur = 15;
+            } else if (isConnected) {
+                ctx.fillStyle = n.color;
+                ctx.shadowColor = n.color;
+                ctx.shadowBlur = 8;
+            } else if (hoveredNode) {
+                ctx.fillStyle = n.color + '44';
+                ctx.shadowBlur = 0;
+            } else {
+                ctx.fillStyle = n.color;
+                ctx.shadowColor = n.color;
+                ctx.shadowBlur = 3;
+            }
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Draw label for all nodes
+            if (isHovered || isConnected || !hoveredNode) {
+                ctx.font = `${isHovered ? '12px' : '10px'} 'Segoe UI', sans-serif`;
+                ctx.fillStyle = isHovered ? '#ffffff' : (isConnected ? '#c9d1d9' : '#8b949e');
+                ctx.textAlign = 'center';
+                ctx.fillText(n.name.length > 25 ? n.name.slice(0,22) + '...' : n.name, n.x, n.y + n.radius + 14);
+            }
+        });
+
+        ctx.restore();
+    }
+
+    // ── INTERACTION ──
+    function getMousePos(e) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+            x: (e.clientX - rect.left - transform.x) / transform.scale,
+            y: (e.clientY - rect.top - transform.y) / transform.scale
+        };
+    }
+
+    function findNodeAt(pos) {
+        for (let i = nodes.length - 1; i >= 0; i--) {
+            const n = nodes[i];
+            const dx = pos.x - n.x, dy = pos.y - n.y;
+            if (dx * dx + dy * dy < (n.radius + 5) * (n.radius + 5)) return n;
+        }
+        return null;
+    }
+
+    function onMouseDown(e) {
+        const pos = getMousePos(e);
+        const node = findNodeAt(pos);
+        if (node) {
+            dragging = node;
+            dragging.vx = 0;
+            dragging.vy = 0;
+            canvas.style.cursor = 'grabbing';
+        } else {
+            panning = true;
+            panStart = { x: e.clientX - transform.x, y: e.clientY - transform.y };
+            canvas.style.cursor = 'grabbing';
+        }
+    }
+
+    function onMouseMove(e) {
+        const pos = getMousePos(e);
+        if (dragging) {
+            dragging.x = pos.x;
+            dragging.y = pos.y;
+        } else if (panning) {
+            transform.x = e.clientX - panStart.x;
+            transform.y = e.clientY - panStart.y;
+        } else {
+            const node = findNodeAt(pos);
+            hoveredNode = node;
+            canvas.style.cursor = node ? 'pointer' : 'default';
+
+            const tooltip = document.getElementById('neuralTooltip');
+            if (node) {
+                tooltip.textContent = node.name + (node.folder ? ` (${node.folder})` : '') + ` — ${node.degree} connections`;
+                const wrapRect = canvas.parentElement.getBoundingClientRect();
+                tooltip.style.left = (e.clientX - wrapRect.left + 12) + 'px';
+                tooltip.style.top = (e.clientY - wrapRect.top - 10) + 'px';
+                tooltip.classList.add('visible');
+            } else {
+                tooltip.classList.remove('visible');
+            }
+        }
+    }
+
+    function onMouseUp() {
+        dragging = null;
+        panning = false;
+        canvas.style.cursor = 'default';
+    }
+
+    function onWheel(e) {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const zoom = e.deltaY < 0 ? 1.1 : 0.9;
+        const newScale = Math.max(0.1, Math.min(5, transform.scale * zoom));
+
+        // Zoom towards mouse position
+        transform.x = mouseX - (mouseX - transform.x) * (newScale / transform.scale);
+        transform.y = mouseY - (mouseY - transform.y) * (newScale / transform.scale);
+        transform.scale = newScale;
+    }
+
+    function onDblClick(e) {
+        const pos = getMousePos(e);
+        const node = findNodeAt(pos);
+        if (node) {
+            // Open the file in the SOP preview
+            selectFile({ path: node.path, name: node.name + '.md' });
+            closeNeuralGraph();
+        }
+    }
+
+    function attachCanvasEvents() {
+        canvas.addEventListener('mousedown', onMouseDown);
+        canvas.addEventListener('mousemove', onMouseMove);
+        canvas.addEventListener('mouseup', onMouseUp);
+        canvas.addEventListener('mouseleave', onMouseUp);
+        canvas.addEventListener('wheel', onWheel, { passive: false });
+        canvas.addEventListener('dblclick', onDblClick);
+        window.addEventListener('resize', resizeCanvas);
+    }
+
+    function detachCanvasEvents() {
+        canvas.removeEventListener('mousedown', onMouseDown);
+        canvas.removeEventListener('mousemove', onMouseMove);
+        canvas.removeEventListener('mouseup', onMouseUp);
+        canvas.removeEventListener('mouseleave', onMouseUp);
+        canvas.removeEventListener('wheel', onWheel);
+        canvas.removeEventListener('dblclick', onDblClick);
+        window.removeEventListener('resize', resizeCanvas);
+    }
+
+    // Close on Escape
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && document.getElementById('neuralOverlay').classList.contains('visible')) {
+            closeNeuralGraph();
+        }
+    });
+
+    // ── DRAG TO MOVE WINDOW ──
+    (function() {
+        const header = document.getElementById('neuralHeader');
+        const container = document.getElementById('neuralContainer');
+        let isDragging = false, startX, startY, origLeft, origTop;
+
+        header.addEventListener('mousedown', e => {
+            if (e.target.closest('.neural-close') || e.target.closest('.neural-stats')) return;
+            isDragging = true;
+            const rect = container.getBoundingClientRect();
+            // Remove the centering transform on first drag
+            container.style.transform = 'none';
+            container.style.left = rect.left + 'px';
+            container.style.top = rect.top + 'px';
+            origLeft = rect.left;
+            origTop = rect.top;
+            startX = e.clientX;
+            startY = e.clientY;
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', e => {
+            if (!isDragging) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            container.style.left = (origLeft + dx) + 'px';
+            container.style.top = (origTop + dy) + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+    })();
+
+    // ── RESIZE HANDLE ──
+    (function() {
+        const handle = document.getElementById('neuralResizeHandle');
+        const container = document.getElementById('neuralContainer');
+        let isResizing = false, startX, startY, startW, startH;
+
+        handle.addEventListener('mousedown', e => {
+            isResizing = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            startW = container.offsetWidth;
+            startH = container.offsetHeight;
+            e.preventDefault();
+            e.stopPropagation();
+        });
+
+        document.addEventListener('mousemove', e => {
+            if (!isResizing) return;
+            const newW = Math.max(320, startW + (e.clientX - startX));
+            const newH = Math.max(240, startH + (e.clientY - startY));
+            container.style.width = newW + 'px';
+            container.style.height = newH + 'px';
+            resizeCanvas();
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                resizeCanvas();
+            }
+        });
+    })();
+
+    // Watch for CSS resize (browser native resize: both)
+    if (window.ResizeObserver) {
+        const ro = new ResizeObserver(() => {
+            if (document.getElementById('neuralOverlay').classList.contains('visible')) {
+                resizeCanvas();
+            }
+        });
+        ro.observe(document.getElementById('neuralContainer'));
+    }
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>File Converter — Obsidian Markdown</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg          : #0d1117;
+      --surface     : #161b22;
+      --surface2    : #21262d;
+      --border      : #30363d;
+      --accent      : #7c3aed;
+      --accent-light: #a78bfa;
+      --success     : #238636;
+      --success-text: #3fb950;
+      --error       : #da3633;
+      --error-text  : #f85149;
+      --text        : #e6edf3;
+      --text-muted  : #8b949e;
+      --radius      : 10px;
+    }
+
+    body {
+      background : var(--bg);
+      color      : var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size  : 14px;
+      min-height : 100vh;
+      display    : flex;
+      flex-direction: column;
+      align-items: center;
+      padding    : 40px 20px;
+    }
+
+    /* ── Header ───────────────────────────────────────────── */
+    .header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .header h1 {
+      font-size  : 1.8rem;
+      font-weight: 700;
+      color      : var(--text);
+      letter-spacing: -0.5px;
+    }
+
+    .header h1 span { color: var(--accent-light); }
+
+    .header p {
+      color      : var(--text-muted);
+      margin-top : 8px;
+      font-size  : 0.9rem;
+    }
+
+    /* ── Card ─────────────────────────────────────────────── */
+    .card {
+      background   : var(--surface);
+      border       : 1px solid var(--border);
+      border-radius: var(--radius);
+      padding      : 28px;
+      width        : 100%;
+      max-width    : 680px;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size  : 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color      : var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    /* ── Drop Zone ────────────────────────────────────────── */
+    .drop-zone {
+      border       : 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding      : 48px 24px;
+      text-align   : center;
+      cursor       : pointer;
+      transition   : border-color 0.2s, background 0.2s;
+      position     : relative;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.drag-over {
+      border-color: var(--accent-light);
+      background  : rgba(124, 58, 237, 0.06);
+    }
+
+    .drop-zone input[type="file"] {
+      position: absolute;
+      inset   : 0;
+      opacity : 0;
+      cursor  : pointer;
+      width   : 100%;
+      height  : 100%;
+    }
+
+    .drop-icon {
+      font-size    : 2.4rem;
+      margin-bottom: 12px;
+    }
+
+    .drop-zone h3 {
+      font-size  : 1rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .drop-zone p {
+      color    : var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    .format-badges {
+      display        : flex;
+      flex-wrap      : wrap;
+      gap            : 6px;
+      justify-content: center;
+      margin-top     : 16px;
+    }
+
+    .badge {
+      background   : var(--surface2);
+      border       : 1px solid var(--border);
+      border-radius: 4px;
+      padding      : 2px 8px;
+      font-size    : 0.75rem;
+      font-weight  : 600;
+      color        : var(--text-muted);
+      font-family  : monospace;
+    }
+
+    /* ── File Queue ───────────────────────────────────────── */
+    .file-queue {
+      display       : flex;
+      flex-direction: column;
+      gap           : 8px;
+      margin-top    : 16px;
+    }
+
+    .file-item {
+      display        : flex;
+      align-items    : center;
+      gap            : 10px;
+      background     : var(--surface2);
+      border         : 1px solid var(--border);
+      border-radius  : 8px;
+      padding        : 10px 14px;
+    }
+
+    .file-item .file-icon { font-size: 1.2rem; flex-shrink: 0; }
+
+    .file-item .file-info { flex: 1; min-width: 0; }
+
+    .file-item .file-name {
+      font-weight  : 500;
+      white-space  : nowrap;
+      overflow     : hidden;
+      text-overflow: ellipsis;
+    }
+
+    .file-item .file-size {
+      font-size: 0.78rem;
+      color    : var(--text-muted);
+    }
+
+    .file-item .file-status {
+      font-size  : 0.78rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .file-item .file-status.pending  { color: var(--text-muted); }
+    .file-item .file-status.success  { color: var(--success-text); }
+    .file-item .file-status.failed   { color: var(--error-text); }
+    .file-item .file-status.loading  { color: var(--accent-light); }
+
+    .remove-btn {
+      background: none;
+      border    : none;
+      color     : var(--text-muted);
+      cursor    : pointer;
+      font-size : 1rem;
+      padding   : 2px 4px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .remove-btn:hover { color: var(--error-text); background: rgba(218,54,51,0.1); }
+
+    /* ── Buttons ──────────────────────────────────────────── */
+    .btn-row {
+      display        : flex;
+      gap            : 10px;
+      margin-top     : 20px;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      padding      : 9px 20px;
+      border-radius: 8px;
+      border       : none;
+      font-size    : 0.875rem;
+      font-weight  : 600;
+      cursor       : pointer;
+      transition   : opacity 0.15s, transform 0.1s;
+    }
+
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-primary {
+      background: var(--accent);
+      color     : #fff;
+    }
+
+    .btn-primary:hover:not(:disabled) { background: #6d28d9; }
+
+    .btn-ghost {
+      background: var(--surface2);
+      color     : var(--text-muted);
+      border    : 1px solid var(--border);
+    }
+
+    .btn-ghost:hover:not(:disabled) { color: var(--text); border-color: var(--text-muted); }
+
+    /* ── Progress Bar ─────────────────────────────────────── */
+    .progress-wrap {
+      margin-top   : 16px;
+      background   : var(--surface2);
+      border-radius: 6px;
+      height       : 6px;
+      overflow     : hidden;
+      display      : none;
+    }
+
+    .progress-wrap.visible { display: block; }
+
+    .progress-bar {
+      height    : 100%;
+      background: var(--accent-light);
+      transition: width 0.3s ease;
+      width     : 0%;
+    }
+
+    /* ── Summary Banner ───────────────────────────────────── */
+    .summary {
+      display      : none;
+      border-radius: 8px;
+      padding      : 14px 18px;
+      margin-top   : 16px;
+      font-size    : 0.875rem;
+      font-weight  : 500;
+      border       : 1px solid;
+    }
+
+    .summary.success {
+      background  : rgba(35, 134, 54, 0.12);
+      border-color: var(--success);
+      color       : var(--success-text);
+    }
+
+    .summary.partial {
+      background  : rgba(210, 153, 34, 0.12);
+      border-color: #d29922;
+      color       : #e3b341;
+    }
+
+    .summary.error {
+      background  : rgba(218, 54, 51, 0.12);
+      border-color: var(--error);
+      color       : var(--error-text);
+    }
+
+    /* ── Converted Files List ─────────────────────────────── */
+    .files-list {
+      display       : flex;
+      flex-direction: column;
+      gap           : 6px;
+    }
+
+    .vault-file {
+      display        : flex;
+      align-items    : center;
+      gap            : 10px;
+      padding        : 8px 12px;
+      background     : var(--surface2);
+      border         : 1px solid var(--border);
+      border-radius  : 6px;
+      font-size      : 0.85rem;
+    }
+
+    .vault-file .vf-name { flex: 1; font-weight: 500; }
+    .vault-file .vf-meta { color: var(--text-muted); font-size: 0.78rem; }
+
+    .empty-state {
+      text-align: center;
+      color     : var(--text-muted);
+      padding   : 24px;
+      font-size : 0.875rem;
+    }
+
+    /* ── Status Dot ───────────────────────────────────────── */
+    .status-dot {
+      display      : inline-block;
+      width        : 8px;
+      height       : 8px;
+      border-radius: 50%;
+      background   : var(--success-text);
+      margin-right : 6px;
+      animation    : pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+
+    .server-info {
+      font-size: 0.78rem;
+      color    : var(--text-muted);
+      margin-top: 8px;
+    }
+
+    .server-info span { color: var(--accent-light); }
+  </style>
+</head>
+<body>
+
+  <!-- ── Header ──────────────────────────────────────────── -->
+  <div class="header">
+    <h1>File <span>↔ Markdown</span> Converter</h1>
+    <p>Convert files to Obsidian Markdown — or export Markdown back to Word / plain text.</p>
+  </div>
+
+  <!-- ── Server Status ───────────────────────────────────── -->
+  <div class="card" id="statusCard">
+    <div class="card-title">Server Status</div>
+    <div id="serverStatus">
+      <span class="status-dot"></span> Connected
+      <div class="server-info">Destination: <span id="destPath">Loading...</span></div>
+    </div>
+  </div>
+
+  <!-- ── Upload Card ─────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">Upload Files</div>
+
+    <!-- Drop Zone -->
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" multiple
+             accept=".pdf,.docx,.xlsx,.xls,.csv,.txt,.png,.jpg,.jpeg,.gif,.webp,.bmp,.svg" />
+      <div class="drop-icon">📂</div>
+      <h3>Drop files here or click to browse</h3>
+      <p>Select one or multiple files to convert</p>
+      <div class="format-badges">
+        <span class="badge">.pdf</span>
+        <span class="badge">.docx</span>
+        <span class="badge">.xlsx</span>
+        <span class="badge">.xls</span>
+        <span class="badge">.csv</span>
+        <span class="badge">.txt</span>
+        <span class="badge" style="color:#7dd3fc">.png</span>
+        <span class="badge" style="color:#7dd3fc">.jpg</span>
+        <span class="badge" style="color:#7dd3fc">.jpeg</span>
+        <span class="badge" style="color:#7dd3fc">.gif</span>
+        <span class="badge" style="color:#7dd3fc">.webp</span>
+        <span class="badge" style="color:#7dd3fc">.bmp</span>
+        <span class="badge" style="color:#7dd3fc">.svg</span>
+      </div>
+    </div>
+
+    <!-- File Queue -->
+    <div class="file-queue" id="fileQueue"></div>
+
+    <!-- Progress -->
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary" id="summary"></div>
+
+    <!-- Action Buttons -->
+    <div class="btn-row">
+      <button class="btn btn-ghost" id="clearBtn" onclick="clearQueue()" disabled>
+        Clear
+      </button>
+      <button class="btn btn-primary" id="convertBtn" onclick="startConversion()" disabled>
+        Convert to Markdown
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Export MD → Other Formats ──────────────────────────── -->
+  <div class="card">
+    <div class="card-title">Export Markdown → Other Formats</div>
+
+    <div class="drop-zone" id="exportDropZone">
+      <input type="file" id="exportFileInput" accept=".md" />
+      <div class="drop-icon">📤</div>
+      <h3>Drop a .md file here or click to browse</h3>
+      <p>Export Markdown to Word, PDF, Excel, CSV, or plain text</p>
+      <div class="format-badges">
+        <span class="badge" style="color:#a78bfa">.md</span>
+        <span style="margin:0 8px;color:var(--text-muted)">→</span>
+        <span class="badge">.docx</span>
+        <span class="badge">.pdf</span>
+        <span class="badge">.xlsx</span>
+        <span class="badge">.csv</span>
+        <span class="badge">.txt</span>
+      </div>
+    </div>
+
+    <div id="exportFileInfo" style="display:none;margin-top:16px;padding:12px;background:var(--surface2);border-radius:8px;font-size:0.875rem;">
+      <div style="font-weight:600;margin-bottom:6px;" id="exportFileName"></div>
+      <div style="color:var(--text-muted);font-size:0.78rem;" id="exportFileSize"></div>
+    </div>
+
+    <div class="btn-row" style="margin-top:16px;flex-wrap:wrap;">
+      <button class="btn btn-ghost export-btn" id="exportDocxBtn" data-format="docx" disabled>📘 Word (.docx)</button>
+      <button class="btn btn-ghost export-btn" id="exportPdfBtn"  data-format="pdf"  disabled>📕 PDF (.pdf)</button>
+      <button class="btn btn-ghost export-btn" id="exportXlsxBtn" data-format="xlsx" disabled>📗 Excel (.xlsx)</button>
+      <button class="btn btn-ghost export-btn" id="exportCsvBtn"  data-format="csv"  disabled>📊 CSV (.csv)</button>
+      <button class="btn btn-ghost export-btn" id="exportTxtBtn"  data-format="txt"  disabled>📄 Text (.txt)</button>
+    </div>
+  </div>
+
+  <!-- ── Converted Files ─────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">
+      Files in Obsidian Database
+      <button class="btn btn-ghost" style="float:right;padding:3px 10px;font-size:0.75rem;"
+              onclick="loadVaultFiles()">↻ Refresh</button>
+    </div>
+    <div class="files-list" id="filesList">
+      <div class="empty-state">Loading...</div>
+    </div>
+  </div>
+
+  <!-- ── Script ──────────────────────────────────────────── -->
+  <script>
+    'use strict';
+
+    const API = `${window.location.protocol}//${window.location.host}/api`;
+
+    // ── State ──────────────────────────────────────────────
+    let selectedFiles = [];
+
+    // ── Initialise ─────────────────────────────────────────
+    window.addEventListener('DOMContentLoaded', () => {
+      checkServerStatus();
+      loadVaultFiles();
+    });
+
+    // ── Server Status ──────────────────────────────────────
+    async function checkServerStatus() {
+      try {
+        const res  = await fetch(`${API}/status`);
+        const data = await res.json();
+        document.getElementById('destPath').textContent = data.destDir;
+      } catch {
+        document.getElementById('serverStatus').innerHTML =
+          '<span style="color:var(--error-text)">⚠ Server not reachable — make sure it is running on port 3002</span>';
+      }
+    }
+
+    // ── Drag & Drop ────────────────────────────────────────
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      addFiles([...e.dataTransfer.files]);
+    });
+
+    fileInput.addEventListener('change', () => {
+      addFiles([...fileInput.files]);
+      fileInput.value = '';
+    });
+
+    // ── File Queue Management ──────────────────────────────
+    function addFiles(files) {
+      const supported = ['.pdf', '.docx', '.xlsx', '.xls', '.csv', '.txt',
+                         '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg'];
+      files.forEach((file) => {
+        const ext = '.' + file.name.split('.').pop().toLowerCase();
+        if (!supported.includes(ext)) {
+          alert(`Unsupported format: ${file.name}\nSupported: ${supported.join(', ')}`);
+          return;
+        }
+        // Avoid duplicates
+        if (!selectedFiles.find((f) => f.name === file.name && f.size === file.size)) {
+          selectedFiles.push(file);
+        }
+      });
+      renderQueue();
+    }
+
+    function removeFile(index) {
+      selectedFiles.splice(index, 1);
+      renderQueue();
+    }
+
+    function clearQueue() {
+      selectedFiles = [];
+      renderQueue();
+      hideSummary();
+    }
+
+    function renderQueue() {
+      const queue = document.getElementById('fileQueue');
+      const convertBtn = document.getElementById('convertBtn');
+      const clearBtn   = document.getElementById('clearBtn');
+
+      if (selectedFiles.length === 0) {
+        queue.innerHTML = '';
+        convertBtn.disabled = true;
+        clearBtn.disabled   = true;
+        return;
+      }
+
+      convertBtn.disabled = false;
+      clearBtn.disabled   = false;
+
+      queue.innerHTML = selectedFiles.map((file, i) => {
+        const ext  = '.' + file.name.split('.').pop().toLowerCase();
+        const icon = getFileIcon(ext);
+        const size = formatSize(file.size);
+        return `
+          <div class="file-item" id="file-item-${i}">
+            <span class="file-icon">${icon}</span>
+            <div class="file-info">
+              <div class="file-name" title="${file.name}">${file.name}</div>
+              <div class="file-size">${size}</div>
+            </div>
+            <span class="file-status pending" id="status-${i}">Pending</span>
+            <button class="remove-btn" onclick="removeFile(${i})" title="Remove">✕</button>
+          </div>`;
+      }).join('');
+    }
+
+    // ── Conversion ─────────────────────────────────────────
+    async function startConversion() {
+      if (selectedFiles.length === 0) return;
+
+      const convertBtn = document.getElementById('convertBtn');
+      const clearBtn   = document.getElementById('clearBtn');
+      convertBtn.disabled = true;
+      clearBtn.disabled   = true;
+      hideSummary();
+
+      // Show progress bar
+      const progressWrap = document.getElementById('progressWrap');
+      const progressBar  = document.getElementById('progressBar');
+      progressWrap.classList.add('visible');
+      progressBar.style.width = '0%';
+
+      const formData = new FormData();
+      selectedFiles.forEach((file) => formData.append('files', file));
+
+      // Animate progress while uploading
+      let fakeProgress = 0;
+      const ticker = setInterval(() => {
+        fakeProgress = Math.min(fakeProgress + 4, 85);
+        progressBar.style.width = fakeProgress + '%';
+      }, 120);
+
+      // Mark all as loading
+      selectedFiles.forEach((_, i) => setFileStatus(i, 'loading', 'Converting…'));
+
+      try {
+        const res  = await fetch(`${API}/convert`, { method: 'POST', body: formData });
+        const data = await res.json();
+
+        clearInterval(ticker);
+        progressBar.style.width = '100%';
+
+        // Update individual statuses
+        data.results.forEach((result, i) => {
+          if (result.status === 'success') {
+            setFileStatus(i, 'success', '✓ Done');
+          } else {
+            setFileStatus(i, 'failed', `✗ ${result.error}`);
+          }
+        });
+
+        // Show summary
+        const { converted, failed, total } = data.summary;
+        showSummary(converted, failed, total);
+
+        // Refresh vault list
+        await loadVaultFiles();
+
+        // Reset after 3 seconds if all succeeded
+        if (failed === 0) {
+          setTimeout(() => {
+            clearQueue();
+            progressWrap.classList.remove('visible');
+            progressBar.style.width = '0%';
+          }, 3000);
+        } else {
+          convertBtn.disabled = false;
+          clearBtn.disabled   = false;
+        }
+
+      } catch (err) {
+        clearInterval(ticker);
+        progressBar.style.width = '0%';
+        progressWrap.classList.remove('visible');
+        selectedFiles.forEach((_, i) => setFileStatus(i, 'failed', '✗ Server error'));
+        showSummary(0, selectedFiles.length, selectedFiles.length);
+        convertBtn.disabled = false;
+        clearBtn.disabled   = false;
+      }
+    }
+
+    // ── Vault Files ────────────────────────────────────────
+    async function loadVaultFiles() {
+      const list = document.getElementById('filesList');
+      try {
+        const res  = await fetch(`${API}/converted-files`);
+        const data = await res.json();
+
+        if (!data.files || data.files.length === 0) {
+          list.innerHTML = '<div class="empty-state">No Markdown files in the database yet.</div>';
+          return;
+        }
+
+        list.innerHTML = data.files.map((f) => `
+          <div class="vault-file">
+            <span>📄</span>
+            <span class="vf-name">${f.name}</span>
+            <span class="vf-meta">${f.sizeKB} KB · ${f.modified}</span>
+          </div>`).join('');
+
+      } catch {
+        list.innerHTML = '<div class="empty-state" style="color:var(--error-text)">Could not load files — server may be offline.</div>';
+      }
+    }
+
+    // ── Helpers ────────────────────────────────────────────
+    function setFileStatus(index, type, text) {
+      const el = document.getElementById(`status-${index}`);
+      if (el) { el.className = `file-status ${type}`; el.textContent = text; }
+    }
+
+    function showSummary(converted, failed, total) {
+      const el = document.getElementById('summary');
+      el.style.display = 'block';
+      if (failed === 0) {
+        el.className = 'summary success';
+        el.textContent = `✓ All ${total} file${total > 1 ? 's' : ''} converted successfully and saved to Obsidian database.`;
+      } else if (converted > 0) {
+        el.className = 'summary partial';
+        el.textContent = `⚠ ${converted} converted, ${failed} failed. Check the failed files above.`;
+      } else {
+        el.className = 'summary error';
+        el.textContent = `✗ All ${total} file${total > 1 ? 's' : ''} failed to convert.`;
+      }
+    }
+
+    function hideSummary() {
+      const el = document.getElementById('summary');
+      el.style.display = 'none';
+    }
+
+    function getFileIcon(ext) {
+      const icons = {
+        '.pdf' : '📕', '.docx': '📘',
+        '.xlsx': '📗', '.xls' : '📗',
+        '.csv' : '📊', '.txt' : '📄',
+        '.png' : '🖼️', '.jpg' : '🖼️', '.jpeg': '🖼️',
+        '.gif' : '🖼️', '.webp': '🖼️', '.bmp' : '🖼️', '.svg': '🖼️',
+      };
+      return icons[ext] || '📄';
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024)       return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    // ── MD Export ──────────────────────────────────────────
+    let exportSelectedFile = null;
+
+    const exportDropZone  = document.getElementById('exportDropZone');
+    const exportFileInput = document.getElementById('exportFileInput');
+
+    exportDropZone.addEventListener('dragover', (e) => { e.preventDefault(); exportDropZone.classList.add('drag-over'); });
+    exportDropZone.addEventListener('dragleave', () => exportDropZone.classList.remove('drag-over'));
+    exportDropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      exportDropZone.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file) setExportFile(file);
+    });
+    exportFileInput.addEventListener('change', () => {
+      if (exportFileInput.files[0]) setExportFile(exportFileInput.files[0]);
+      exportFileInput.value = '';
+    });
+
+    function setExportFile(file) {
+      if (!file.name.toLowerCase().endsWith('.md')) {
+        alert('Only .md files can be exported. Please select a Markdown file.');
+        return;
+      }
+      exportSelectedFile = file;
+      document.getElementById('exportFileName').textContent = '📄 ' + file.name;
+      document.getElementById('exportFileSize').textContent = formatSize(file.size);
+      document.getElementById('exportFileInfo').style.display = 'block';
+      document.querySelectorAll('.export-btn').forEach(b => b.disabled = false);
+    }
+
+    // Wire up all export buttons
+    document.querySelectorAll('.export-btn').forEach(btn => {
+      btn.addEventListener('click', () => exportFile(btn.dataset.format));
+    });
+
+    const FORMAT_LABELS = {
+      docx: '📘 Word (.docx)',
+      pdf : '📕 PDF (.pdf)',
+      xlsx: '📗 Excel (.xlsx)',
+      csv : '📊 CSV (.csv)',
+      txt : '📄 Text (.txt)',
+    };
+
+    async function exportFile(format) {
+      if (!exportSelectedFile) return;
+
+      // Disable all buttons and show loading state on the clicked one
+      document.querySelectorAll('.export-btn').forEach(b => {
+        b.disabled = true;
+        if (b.dataset.format === format) b.textContent = 'Exporting…';
+      });
+
+      try {
+        const formData = new FormData();
+        formData.append('file', exportSelectedFile);
+
+        const res = await fetch(`${API}/export?format=${format}`, { method: 'POST', body: formData });
+
+        if (!res.ok) {
+          const err = await res.json();
+          alert('Export failed: ' + (err.error || 'Unknown error'));
+          return;
+        }
+
+        // Trigger browser download
+        const ext      = format === 'xlsx' ? 'xlsx' : format;
+        const blob     = await res.blob();
+        const stem     = exportSelectedFile.name.replace(/\.md$/i, '');
+        const filename = `${stem}.${ext}`;
+        const url      = URL.createObjectURL(blob);
+        const a        = document.createElement('a');
+        a.href         = url;
+        a.download     = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+      } catch (err) {
+        alert('Export failed: ' + err.message);
+      } finally {
+        document.querySelectorAll('.export-btn').forEach(b => {
+          b.disabled = !exportSelectedFile;
+          b.textContent = FORMAT_LABELS[b.dataset.format] || b.dataset.format;
+        });
+      }
+    }
+  </script>
+</body>
+</html>

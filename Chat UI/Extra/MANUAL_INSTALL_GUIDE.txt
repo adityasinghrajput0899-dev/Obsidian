@@ -1,0 +1,87 @@
+MANUAL SERVICE INSTALLATION GUIDE
+==================================
+
+If the batch file doesn't work, follow these steps:
+
+STEP 1: Open PowerShell as Administrator
+1. Search for "PowerShell" in Start Menu
+2. Right-click on "Windows PowerShell"
+3. Select "Run as administrator"
+4. Click "Yes" when prompted
+
+STEP 2: Navigate to Project Directory
+Copy and paste this command:
+```
+cd "C:\Users\adisba\OneDrive - amazon.com\PROJECT UI\Chat UI"
+```
+
+STEP 3: Install Chat UI Service
+Copy and paste this command:
+```
+$serviceName = "ObsidianChatUI"
+$nodePath = "node.exe"
+$scriptPath = "C:\Users\adisba\OneDrive - amazon.com\PROJECT UI\Chat UI\backend\server.js"
+$workingDirectory = "C:\Users\adisba\OneDrive - amazon.com\PROJECT UI\Chat UI\backend"
+
+New-Service -Name $serviceName -DisplayName "Obsidian Chat UI Server" -Description "Obsidian AI Chat UI Server" -BinaryPathName "`"$nodePath`" `"$scriptPath`"" -StartupType Automatic
+sc.exe config $serviceName obj="NT AUTHORITY\NetworkService" password=""
+sc.exe failure $serviceName reset=86400 actions=restart/5000/restart/10000/restart/30000
+Start-Service -Name $serviceName
+```
+
+STEP 4: Install File Converter Service
+Copy and paste this command:
+```
+$serviceName = "FileConverterService"
+$nodePath = "node.exe"
+$scriptPath = "C:\Users\adisba\OneDrive - amazon.com\PROJECT UI\Chat UI\file-converter\backend\server.js"
+$workingDirectory = "C:\Users\adisba\OneDrive - amazon.com\PROJECT UI\Chat UI\file-converter\backend"
+
+New-Service -Name $serviceName -DisplayName "File to Markdown Converter" -Description "File to Markdown Converter Server" -BinaryPathName "`"$nodePath`" `"$scriptPath`"" -StartupType Automatic
+sc.exe config $serviceName obj="NT AUTHORITY\NetworkService" password=""
+sc.exe failure $serviceName reset=86400 actions=restart/5000/restart/10000/restart/30000
+Start-Service -Name $serviceName
+```
+
+STEP 5: Verify Installation
+Copy and paste this command:
+```
+Get-Service ObsidianChatUI, FileConverterService
+```
+
+You should see both services with status "Running".
+
+STEP 6: Test Access
+1. Open browser and go to: http://localhost:3001
+2. Open browser and go to: http://localhost:3002
+
+TROUBLESHOOTING:
+1. If services fail to start, check if ports are in use:
+   ```
+   netstat -ano | findstr :3001
+   netstat -ano | findstr :3002
+   ```
+
+2. If ports are in use, kill the processes:
+   ```
+   taskkill /F /PID [PID_NUMBER]
+   ```
+
+3. Restart services:
+   ```
+   Restart-Service ObsidianChatUI
+   Restart-Service FileConverterService
+   ```
+
+4. Check service logs:
+   ```
+   Get-EventLog -LogName Application -Newest 20 | Where-Object {$_.Source -like "*Obsidian*" -or $_.Source -like "*FileConverter*"}
+   ```
+
+The services will now:
+- Run 24/7 even when you're not logged in
+- Start automatically when Windows boots
+- Restart automatically if they crash
+- Be accessible at:
+  - Chat UI: http://localhost:3001 or http://[YOUR_IP]:3001
+  - Converter: http://localhost:3002 or http://[YOUR_IP]:3002

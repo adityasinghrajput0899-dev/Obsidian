@@ -1,0 +1,283 @@
+[
+  {
+    "topic": "normalization should always start from a capital letter",
+    "answer": "normalization should always start from a capital letter",
+    "keywords": [
+      "normalization",
+      "should",
+      "always",
+      "start",
+      "from",
+      "capital",
+      "letter"
+    ],
+    "addedBy": "user",
+    "date": "13 May 2026",
+    "time": "11:02",
+    "chatFile": "2026-05-13/chat_1778650376147.md"
+  },
+  {
+    "type": "fact",
+    "topic": "I am building an AMS template and there",
+    "answer": "I am building an AMS template and there are beta issue whom whould I reach out",
+    "keywords": [
+      "building",
+      "template",
+      "beta",
+      "issue",
+      "whom",
+      "whould",
+      "reach"
+    ],
+    "source": "conversation",
+    "addedBy": "auto-learn",
+    "date": "13 May 2026",
+    "time": "12:13",
+    "chatFile": "2026-05-13/chat_1778654581287.md"
+  },
+  {
+    "type": "fact",
+    "topic": "i have few beta uat issue while creating a ams what",
+    "answer": "i have few beta uat issue while creating a ams what should be my next steps",
+    "keywords": [
+      "beta",
+      "issue",
+      "while",
+      "creating",
+      "next",
+      "steps"
+    ],
+    "source": "SOP LINK.md",
+    "addedBy": "auto-learn",
+    "date": "13 May 2026",
+    "time": "12:23",
+    "chatFile": "2026-05-13/chat_1778655196853.md"
+  },
+  {
+    "type": "fact",
+    "topic": "In A+ Content world what",
+    "answer": "In A+ Content world what should I do when I encounter any ASIN where the DP is not available",
+    "keywords": [
+      "content",
+      "world",
+      "encounter",
+      "asin",
+      "available"
+    ],
+    "source": "conversation",
+    "addedBy": "auto-learn",
+    "date": "13 May 2026",
+    "time": "13:50",
+    "chatFile": "2026-05-13/chat_1778660390113.md"
+  },
+  {
+    "type": "fact",
+    "topic": "In Data Augmenter Audits how",
+    "answer": "In Data Augmenter Audits how do I check if the attribute value is correct",
+    "keywords": [
+      "data",
+      "augmenter",
+      "audits",
+      "check",
+      "attribute",
+      "value",
+      "correct"
+    ],
+    "source": "conversation",
+    "addedBy": "auto-learn",
+    "date": "13 May 2026",
+    "time": "14:38",
+    "chatFile": "2026-05-13/chat_1778663266410.md"
+  },
+  {
+    "type": "fact",
+    "topic": "explain me everything on normalization with every resource that you",
+    "answer": "explain me everything on normalization with every resource that you have present",
+    "keywords": [
+      "explain",
+      "everything",
+      "normalization",
+      "every",
+      "resource",
+      "present"
+    ],
+    "source": "conversation",
+    "addedBy": "auto-learn",
+    "date": "13 May 2026",
+    "time": "14:49",
+    "chatFile": "2026-05-13/chat_1778663887606.md"
+  },
+  {
+    "type": "rule",
+    "topic": "always remember to answer in bulk when asked a question and never hallucinate , if i am asking a question about normalization give everything you have",
+    "answer": "always remember to answer in bulk when asked a question and never hallucinate , if i am asking a question about normalization give everything you have on normalization from catalog system map and webhome xwiki file",
+    "keywords": [
+      "always",
+      "remember",
+      "answer",
+      "bulk",
+      "asked",
+      "question",
+      "never",
+      "hallucinate",
+      "asking",
+      "question"
+    ],
+    "source": "user rule",
+    "addedBy": "auto-learn",
+    "date": "15 May 2026",
+    "time": "05:53",
+    "chatFile": "2026-05-15/chat_1778804156945.md"
+  },
+  {
+    "type": "fact",
+    "topic": "which team",
+    "answer": "which team should i talk to if i have any issue with normalization",
+    "keywords": [
+      "team",
+      "talk",
+      "issue",
+      "normalization"
+    ],
+    "source": "conversation",
+    "addedBy": "auto-learn",
+    "date": "15 May 2026",
+    "time": "05:55",
+    "chatFile": "2026-05-15/chat_1778804676603.md"
+  },
+  {
+    "type": "fact",
+    "topic": "No are you up till the 2026 or you",
+    "answer": "No are you up till the 2026 or you are using some old information",
+    "keywords": [
+      "till",
+      "2026",
+      "using",
+      "some",
+      "information"
+    ],
+    "source": "conversation",
+    "addedBy": "auto-learn",
+    "date": "15 May 2026",
+    "time": "14:39",
+    "chatFile": "2026-05-15/chat_1778836098453.md"
+  },
+  {
+    "type": "fact",
+    "topic": "we need to build a use case which",
+    "answer": "we need to build a use case which has a flow from SOP wise answer to system reference to system education to the tool sharing reference link",
+    "keywords": [
+      "need",
+      "build",
+      "case",
+      "flow",
+      "wise",
+      "answer",
+      "system",
+      "reference",
+      "system",
+      "education"
+    ],
+    "source": "conversation",
+    "addedBy": "auto-learn",
+    "date": "18 May 2026",
+    "time": "08:19",
+    "chatFile": "2026-05-18/chat_1779072574669.md"
+  },
+  {
+    "type": "fact",
+    "topic": "whom should I talk to if I",
+    "answer": "whom should I talk to if I have any issue related to normalization",
+    "keywords": [
+      "whom",
+      "talk",
+      "issue",
+      "related",
+      "normalization"
+    ],
+    "source": "Catalog System Map _ System Details.md, Publishing SOP (Enumeration_Discovery.Publishing_SOP.WebHome) - XWiki.md, Starfish Modular Title Quality Audits.md, Starfish Vanguard SOP V7.md",
+    "addedBy": "auto-learn",
+    "date": "19 May 2026",
+    "time": "09:05",
+    "chatFile": "2026-05-19/chat_1779161015969.md"
+  },
+  {
+    "type": "fact",
+    "topic": "For Starfish SOP add a scenario where if the DP page",
+    "answer": "For Starfish SOP add a scenario where if the DP page is not opening then the decision should be marked as tombstone asin with reason code",
+    "keywords": [
+      "starfish",
+      "scenario",
+      "page",
+      "opening",
+      "then",
+      "decision",
+      "marked",
+      "tombstone",
+      "asin",
+      "reason"
+    ],
+    "source": "Publishing SOP (Enumeration_Discovery.Publishing_SOP.WebHome) - XWiki.md, Starfish Modular Title Quality Audits.md, Starfish Vanguard SOP V7.md, Catalog System Map _ System Details.md",
+    "addedBy": "auto-learn",
+    "date": "20 May 2026",
+    "time": "10:15",
+    "chatFile": "2026-05-20/chat_1779251459630.md"
+  },
+  {
+    "type": "fact",
+    "topic": "if i have any issue with the normalization which team",
+    "answer": "if i have any issue with the normalization which team is responsible of handling the process",
+    "keywords": [
+      "issue",
+      "normalization",
+      "team",
+      "responsible",
+      "handling",
+      "process"
+    ],
+    "source": "conversation",
+    "addedBy": "auto-learn",
+    "date": "21 May 2026",
+    "time": "06:34",
+    "chatFile": "2026-05-21/chat_1779325020134.md"
+  },
+  {
+    "type": "fact",
+    "topic": "If there",
+    "answer": "If there is an issue related to normalization, which team is responsible for handling it? \nAre there any other teams collaborating",
+    "keywords": [
+      "issue",
+      "related",
+      "normalization",
+      "team",
+      "responsible",
+      "handling",
+      "other",
+      "teams",
+      "collaborating"
+    ],
+    "source": "conversation",
+    "addedBy": "auto-learn",
+    "date": "21 May 2026",
+    "time": "09:35",
+    "chatFile": "2026-05-21/chat_1779335875077.md"
+  },
+  {
+    "type": "fact",
+    "topic": "if i have a issue with the normalized words (BLK, WR ) and who",
+    "answer": "if i have a issue with the normalized words (BLK, WR ) and who should we connect if we have any issue with normalization",
+    "keywords": [
+      "issue",
+      "normalized",
+      "words",
+      "connect",
+      "issue",
+      "normalization"
+    ],
+    "source": "Catalog System Map _ System Details.md",
+    "addedBy": "auto-learn",
+    "date": "21 May 2026",
+    "time": "15:57",
+    "chatFile": "2026-05-21/chat_1779358123827.md"
+  }
+]

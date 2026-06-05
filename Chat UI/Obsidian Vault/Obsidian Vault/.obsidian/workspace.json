@@ -1,0 +1,212 @@
+{
+  "main": {
+    "id": "207ab9a0289365fe",
+    "type": "split",
+    "children": [
+      {
+        "id": "fe4bfe9558b05ea1",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "a79bd06866955164",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Graph view"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "27f0bebbc98879a6",
+    "type": "split",
+    "children": [
+      {
+        "id": "5d170e6f26ffb65b",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "c2876f5864176c84",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "d854e6398ac2701a",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "74dcb2ea14c6964a",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 307.5
+  },
+  "right": {
+    "id": "abd7ea7ae785eb58",
+    "type": "split",
+    "children": [
+      {
+        "id": "655d697a5af859dc",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "ffaf5ac26eaaf040",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Untitled.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for Untitled"
+            }
+          },
+          {
+            "id": "f046633b1e6b2be6",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "Untitled.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from Untitled"
+            }
+          },
+          {
+            "id": "606794bfb86a4b78",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "e62761a5386c6ac4",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "f111a49ef974e2e4",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Untitled.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of Untitled"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "a79bd06866955164",
+  "lastOpenFiles": [
+    "Publishing SOP (Enumeration_Discovery.Publishing_SOP.WebHome) - XWiki - Copy.md",
+    "Catalog System Map _ System Details.md",
+    "Starfish Vanguard SOP V7.md",
+    "Starfish Modular Title Quality Audits.md",
+    "Validation of Catalog Updates by Internal Data Augmenters (SOP).md",
+    "SOP_ Batch 3 parameter-level annotation.md",
+    "SOP for general A+ Content Annotation.md",
+    "SOP for general A+ Content Annotation 2.0.md",
+    "SOP for AI Generated A+ Content High-level Recommendation Audit.md",
+    "SOP for AI Generated A+ Content Detailed Recommendation Audit.md",
+    "A+ SHOPPABLE COLLECTIONS EVALUATION SYSTEM (Rubric Prompt, Dec 7, 2025).md",
+    "SOP/Auditor batch assigning.md",
+    "SOP/SOP for AI Generated A+ Content High-level Recommendation Audit (1).md",
+    "Auditor batch assigning.md",
+    "Discard Multiple Batches.md",
+    "Download Multiple Batches.md",
+    "Amazon DP ASIN Change Detector.md",
+    "Untitled.md",
+    "SOP/SOP_ Batch 3 parameter-level annotation (1).md",
+    "SOP/SOP for general A+ Content Annotation.md",
+    "SOP/SOP for general A+ Content Annotation 2.0.md",
+    "SOP/SOP for AI Generated A+ Content Detailed Recommendation Audit.md",
+    "SOP/New Doc.md",
+    "SOP",
+    "Welcome.md",
+    "2026-05-11.md",
+    "Welcome 1.md"
+  ]
+}

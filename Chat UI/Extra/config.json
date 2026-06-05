@@ -1,0 +1,43 @@
+ {
+  "agent": {
+    "name": "Obsidian AI",
+    "version": "1.0.0",
+    "description": "Smart AI assistant for your Obsidian vault"
+  },
+  "server": {
+    "host": "127.0.0.1",
+    "port": 3001,
+    "timeout": 30000
+  },
+  "ollama": {
+    "enabled": true,
+    "host": "127.0.0.1",
+    "port": 11434,
+    "model": "llama2",
+    "temperature": 0.7,
+    "contextWindow": 2048,
+    "alternativeModels": [
+      "mistral",
+      "neural-chat",
+      "orca-mini"
+    ]
+  },
+  "features": {
+    "fileContext": true,
+    "conversationHistory": true,
+    "chatPersistence": true,
+    "markdown": true,
+    "codeHighlighting": true
+  },
+  "ui": {
+    "theme": "dark",
+    "sidebarWidth": 280,
+    "maxMessageLength": 5000,
+    "messageAnimations": true
+  },
+  "paths": {
+    "vaultPath": "C:/Users/adisba/OneDrive - amazon.com/Desktop/Obsidian database",
+    "chatStoragePath": "C:/Users/adisba/OneDrive - amazon.com/Desktop/obsidian-chat/Vault/Chats"
+  },
+  "systemPrompt": "You are an intelligent AI assistant specialized in helping users with information management and analysis. You are knowledgeable, helpful, and provide clear explanations. You support document analysis, answering questions about provided content, and offering actionable suggestions. You use markdown formatting for clarity and are honest about limitations."
+}
